@@ -1,0 +1,138 @@
+// (c) 2025 gogodyne
+#ifndef KontrolRack_KR_Num8OLED12864_h
+#define KontrolRack_KR_Num8OLED12864_h
+
+#include <functional>
+#include "KontrolRack_KR.h"
+#include "KontrolRack_SSD1306.h"
+#include "KontrolRack_MAX7219.h"
+
+namespace KontrolRack {
+
+namespace KR {
+
+////////////////////////////////////////////////////////////////////////////////
+// This Module is an array of numeric displays, with screens for labels.
+//
+// - Rotary Encoder; +/-, pushbutton
+// - I2C MUX TCA9548A; to switch between array units
+// Array unit:
+// - OLED 128x64 (I2C); unit label
+// - MAX7219 8-digit 7-segment display; unit number
+class Num8OLED12864 : public Module
+{
+public:
+  using Parent = Module;
+
+  OLED12864 oled12864;
+  Num8 num8;
+
+  Num8OLED12864(TwoWire& inWire)
+  : Parent(inWire)
+  , oled12864(inWire)
+  {}
+
+  using Parent::begin;
+  virtual void begin(uint8_t switchAddress, uint8_t oledAddress, Num8::Info num8Info, EncBtn::Info encInfo, fps_t fps, bool test)
+  {
+    Parent::begin(switchAddress, encInfo, fps, test);
+
+    // init I2C devices
+    for (int i = 0; i < getUnitCount(); ++i)
+    {
+      openUnitPorts(i);
+      // init OLED
+      {
+        oled12864.begin(oledAddress);
+        if (test)
+        {
+          oled12864.test(i);
+          oled12864.render();
+        }
+      }
+    }
+
+    // init Numeric
+    {
+      num8.begin(num8Info);
+      num8.clear();
+      if (test)
+      {
+        num8.test(millis());
+        num8.render();
+      }
+    }
+  }
+
+  virtual void draw() override
+  {
+    // Numeric is not I2C; clear/render once
+    num8.clear();
+    Parent::draw();
+    num8.render();
+  }
+
+  virtual void drawOledHighlight(uint8_t index)
+  {
+    bool isSelected = (index == unitSelected) && (moduleMode != ModuleMode::Normal);
+    bool isEdit = (moduleMode == ModuleMode::Edit);
+    bool isHighlight = highlightTimeout > timing.ms;
+
+    // selection highlight
+    if (isSelected && (isHighlight || isEdit || timing.isHz(2)))
+    {
+      oled12864.gfx.invertDisplay(true);
+    }
+    else
+    {
+      oled12864.gfx.invertDisplay(false);
+    }
+  }
+
+  virtual void drawNumHighlight(uint8_t index)
+  {
+    bool isSelected = (index == unitSelected) && (moduleMode != ModuleMode::Normal);
+    bool isEdit = (moduleMode == ModuleMode::Edit);
+    bool isHighlight = highlightTimeout > timing.ms;
+
+    // Edit indicator
+    // if (isSelected && isEdit && !isHighlight)
+    // {
+    //   led24.blinkDisplay(true);
+    // }
+    // else
+    // {
+    //   led24.blinkDisplay(false);
+    // }
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// A numeric display array module.
+template <BankUnitCount UNITCOUNT>
+class Numeric8 : public Num8OLED12864
+{
+public:
+  UnitInfo unitInfos[(uint8_t)UNITCOUNT];
+
+  Numeric8(TwoWire& inWire)
+  : Num8OLED12864(inWire)
+  {
+    _unitInfos = unitInfos;
+  }
+
+  virtual uint8_t getUnitCount() const override { return (uint8_t)UNITCOUNT; }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Unit arrays
+typedef Numeric8<BankUnitCount::Mono> NumericMono;
+typedef Numeric8<BankUnitCount::Dual> NumericDual;
+typedef Numeric8<BankUnitCount::Quad> NumericQuad;
+typedef Numeric8<BankUnitCount::Octo> NumericOcto;
+
+}// namespace KR
+
+}// namespace KontrolRack
+
+#endif// KontrolRack_KR_Num8OLED12864_h
