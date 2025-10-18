@@ -46,7 +46,7 @@ public:
       if (encBtn.btn.didPress)
       {
         // set mode
-        cycleModuleMode();
+        cycleBankMode();
         setEncRange();
       }
 
@@ -54,20 +54,20 @@ public:
       if (encBtn.encDelta)
       {
         // change to select/edit?
-        if (moduleMode == KR::ModuleMode::Normal)
+        if (bankMode == KR::BankMode::Normal)
         {
           // set mode
-          setModuleMode(KR::ModuleMode::Select);
+          setBankMode(KR::BankMode::Select);
           setEncRange();
         }
         else
         {
-          if (moduleMode == KR::ModuleMode::Select)
+          if (bankMode == KR::BankMode::Select)
           {
             setBankSelected(encBtn.enc.slider.position);
           }
           else
-          if (moduleMode == KR::ModuleMode::Edit)
+          if (bankMode == KR::BankMode::Edit)
           {
             setBankLevel(encBtn.enc.slider.position);
           }
@@ -78,12 +78,12 @@ public:
 
   virtual void setEncRange()
   {
-      if (moduleMode == KR::ModuleMode::Select)
+      if (bankMode == KR::BankMode::Select)
       {
         encBtn.enc.slider.set(0, getBankSize() - 1, false, bankSelected);
       }
       else
-      if (moduleMode == KR::ModuleMode::Edit)
+      if (bankMode == KR::BankMode::Edit)
       {
         encBtn.enc.slider.set(0, LEVEL_RANGE - 1, false, bankDatas[bankSelected].level);
       }
@@ -92,7 +92,7 @@ public:
   virtual uint8_t setBankLevel(int8_t level)
   {
     resetHighlightTimeout();
-    resetModuleModeTimeout();
+    resetBankModeTimeout();
 
     bankDatas[bankSelected].level = constrain(level, 0, LEVEL_RANGE - 1);
 

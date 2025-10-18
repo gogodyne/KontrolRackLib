@@ -74,8 +74,8 @@ public:
 
   virtual void drawOledHighlight(uint8_t index)
   {
-    bool isSelected = (index == bankSelected) && (moduleMode != ModuleMode::Normal);
-    bool isEdit = (moduleMode == ModuleMode::Edit);
+    bool isSelected = (index == bankSelected) && (bankMode != BankMode::Normal);
+    bool isEdit = (bankMode == BankMode::Edit);
     bool isHighlight = highlightTimeout > timing.ms;
 
     // selection highlight
@@ -91,8 +91,8 @@ public:
 
   virtual void drawNumHighlight(uint8_t index)
   {
-    // bool isSelected = (index == bankSelected) && (moduleMode != ModuleMode::Normal);
-    // bool isEdit = (moduleMode == ModuleMode::Edit);
+    // bool isSelected = (index == bankSelected) && (bankMode != BankMode::Normal);
+    // bool isEdit = (bankMode == BankMode::Edit);
     // bool isHighlight = highlightTimeout > timing.ms;
 
     // Edit indicator

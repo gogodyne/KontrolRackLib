@@ -19,7 +19,7 @@ enum class BankSize : uint8_t
   Quad = 4
 };
 
-enum class ModuleMode : int8_t
+enum class BankMode : int8_t
 {
   Normal = 0,
   Select,
@@ -87,8 +87,8 @@ public:
 
   Bank* _banks = nullptr;
   int8_t bankSelected = 0;
-  ModuleMode moduleMode = ModuleMode::Normal;
-  timing_t moduleModeTimeout = 0;
+  BankMode bankMode = BankMode::Normal;
+  timing_t bankModeTimeout = 0;
   // keeps the highlight solid while the selection is changing
   timing_t highlightTimeout = 0;
 
@@ -132,9 +132,9 @@ public:
     }
 
     // automatic mode timeout
-    if (moduleModeTimeout < timing.ms)
+    if (bankModeTimeout < timing.ms)
     {
-      setModuleMode(ModuleMode::Normal);
+      setBankMode(BankMode::Normal);
     }
   }
 
@@ -167,7 +167,7 @@ public:
   virtual int8_t setBankSelected(int8_t index)
   {
     resetHighlightTimeout();
-    resetModuleModeTimeout();
+    resetBankModeTimeout();
     bankSelected = constrain(index, 0, getBankSize() - 1);
 
     return bankSelected;
@@ -182,35 +182,35 @@ public:
   }
 
   // Extend the mode timeout.
-  virtual void resetModuleModeTimeout()
+  virtual void resetBankModeTimeout()
   {
-    moduleModeTimeout = timing.ms + 3000;
+    bankModeTimeout = timing.ms + 3000;
   }
 
   // Set the module mode.
-  virtual void setModuleMode(ModuleMode inModuleMode)
+  virtual void setBankMode(BankMode inBankMode)
   {
-    resetModuleModeTimeout();
-    moduleMode = inModuleMode;
+    resetBankModeTimeout();
+    bankMode = inBankMode;
   }
 
   // Set the next/prev module mode.
-  virtual ModuleMode cycleModuleMode(bool next = true)
+  virtual BankMode cycleBankMode(bool next = true)
   {
-    switch (moduleMode)
+    switch (bankMode)
     {
-    case ModuleMode::Normal:
-      setModuleMode(next ? ModuleMode::Select : ModuleMode::Edit);
+    case BankMode::Normal:
+      setBankMode(next ? BankMode::Select : BankMode::Edit);
       break;
-    case ModuleMode::Select:
-      setModuleMode(next ? ModuleMode::Edit : ModuleMode::Normal);
+    case BankMode::Select:
+      setBankMode(next ? BankMode::Edit : BankMode::Normal);
       break;
-    case ModuleMode::Edit:
-      setModuleMode(next ? ModuleMode::Normal : ModuleMode::Select);
+    case BankMode::Edit:
+      setBankMode(next ? BankMode::Normal : BankMode::Select);
       break;
     }
 
-    return moduleMode;
+    return bankMode;
   }
 
   // Open the Switch ports for a bank [0-3].
