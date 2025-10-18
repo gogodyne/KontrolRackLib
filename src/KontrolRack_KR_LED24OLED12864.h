@@ -14,10 +14,10 @@ namespace KR {
 // This Module is an array of meters, with screens for labels.
 //
 // - Rotary Encoder; +/-, pushbutton
-// - I2C MUX TCA9548A; to switch between array units
-// Array unit:
-// - OLED 128x64 (I2C); unit label
-// - Adafruit 24-segment Bargraph (I2C); unit meter
+// - I2C MUX TCA9548A; to switch between array banks
+// Array bank:
+// - OLED 128x64 (I2C); bank label
+// - Adafruit 24-segment Bargraph (I2C); bank meter
 class LED24OLED12864 : public ModuleI2C
 {
 public:
@@ -37,9 +37,9 @@ public:
     Parent::begin(fps, test, switchAddress, encInfo);
 
     // init I2C devices
-    for (int i = 0; i < getUnitCount(); ++i)
+    for (int i = 0; i < getBankSize(); ++i)
     {
-      openUnitPorts(i);
+      openBankPorts(i);
       // init OLED
       {
         oled12864.begin(oledAddress);
@@ -64,7 +64,7 @@ public:
 
   virtual void drawOledHighlight(uint8_t index)
   {
-    bool isSelected = (index == unitSelected) && (moduleMode != ModuleMode::Normal);
+    bool isSelected = (index == bankSelected) && (moduleMode != ModuleMode::Normal);
     bool isEdit = (moduleMode == ModuleMode::Edit);
     bool isHighlight = highlightTimeout > timing.ms;
 
@@ -81,7 +81,7 @@ public:
 
   virtual void drawLedHighlight(uint8_t index)
   {
-    bool isSelected = (index == unitSelected) && (moduleMode != ModuleMode::Normal);
+    bool isSelected = (index == bankSelected) && (moduleMode != ModuleMode::Normal);
     bool isEdit = (moduleMode == ModuleMode::Edit);
     bool isHighlight = highlightTimeout > timing.ms;
 
@@ -99,27 +99,26 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 // A meter display array module.
-template <BankUnitCount UNITCOUNT>
+template <BankSize BANKCOUNT>
 class Meter24 : public LED24OLED12864
 {
 public:
-  UnitInfo unitInfos[(uint8_t)UNITCOUNT];
+  Bank banks[(uint8_t)BANKCOUNT];
 
   Meter24(TwoWire& inWire)
   : LED24OLED12864(inWire)
   {
-    _unitInfos = unitInfos;
+    _banks = banks;
   }
 
-  virtual uint8_t getUnitCount() const override { return (uint8_t)UNITCOUNT; }
+  virtual uint8_t getBankSize() const override { return (uint8_t)BANKCOUNT; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Unit arrays
-typedef Meter24<BankUnitCount::Mono> MeterMono;
-typedef Meter24<BankUnitCount::Dual> MeterDual;
-typedef Meter24<BankUnitCount::Quad> MeterQuad;
-typedef Meter24<BankUnitCount::Octo> MeterOcto;
+// Bank arrays
+typedef Meter24<BankSize::Mono> Meter24Mono;
+typedef Meter24<BankSize::Dual> Meter24Dual;
+typedef Meter24<BankSize::Quad> Meter24Quad;
 
 }// namespace KR
 

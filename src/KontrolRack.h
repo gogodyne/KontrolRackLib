@@ -7,25 +7,6 @@
 
 namespace KontrolRack {
 
-namespace KR {
-
-enum class BankUnitCount : uint8_t
-{
-  Mono = 1,
-  Dual = 2,
-  Quad = 4,
-  Octo = 8
-};
-
-enum class ModuleMode : int8_t
-{
-  Normal = 0,
-  Select,
-  Edit,
-};
-
-}// namespace KR
-
 ////////////////////////////////////////////////////////////////////////////////
 class Utility
 {

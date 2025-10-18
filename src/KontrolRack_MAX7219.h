@@ -36,7 +36,7 @@ namespace KontrolRack {
 
 ////////////////////////////////////////////////////////////////////////////////
 // 8-digit 7-segment numeric display.
-// Up to 8 units.
+// Up to 8 banks.
 // Driver: MAX7219
 class Num8
 {
@@ -103,25 +103,25 @@ public:
   virtual void clear()
   {
     // clear the buffer
-    for (int unit = 0; unit < MAX7219_DeviceMax; ++unit)
+    for (int bank = 0; bank < MAX7219_DeviceMax; ++bank)
       for (int col = 0; col < MAX7219_DigitCount; ++col)
-        buffer[unit][col] = CodeB_Space;
+        buffer[bank][col] = CodeB_Space;
   }
 
   virtual void render()
   {
     // set intensities
     open();
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
-      send(MAX7219_Intensity, intensities[unit]);
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
+      send(MAX7219_Intensity, intensities[bank]);
     close();
 
     // render digits
     for (int col = 0; col < MAX7219_DigitCount; ++col)
     {
       open();
-      for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
-        send(col + 1, buffer[unit][col]);
+      for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
+        send(col + 1, buffer[bank][col]);
       close();
     }
   }
@@ -131,7 +131,7 @@ public:
   virtual void setDisplayTestMode(uint8_t value)
   {
     open();
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
       send(MAX7219_DisplayTestMode, value);
     close();
   }
@@ -139,7 +139,7 @@ public:
   virtual void setShutdownMode(uint8_t value)
   {
     open();
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
       send(MAX7219_ShutdownMode, value);
     close();
   }
@@ -147,41 +147,41 @@ public:
   virtual void setScanLimit(uint8_t value)
   {
     open();
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
       send(MAX7219_ScanLimit, value);
     close();
   }
 
   virtual void setIntensity(float amount)
   {
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
-      setIntensity(unit, amount);
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
+      setIntensity(bank, amount);
   }
 
-  virtual void setIntensity(uint8_t unit, float amount)
+  virtual void setIntensity(uint8_t bank, float amount)
   {
     amount = constrain(amount, 0.f, 1.f);
     amount *= amount;// brightness is logarithmic
     uint8_t value = amount * (float)MAX7219_Intensity_Max;
 
-    intensities[unit] = value;
+    intensities[bank] = value;
   }
 
   virtual void setIntensity(uint8_t value)
   {
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
-      setIntensity(unit, value);
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
+      setIntensity(bank, value);
   }
 
-  virtual void setIntensity(uint8_t unit, uint8_t value)
+  virtual void setIntensity(uint8_t bank, uint8_t value)
   {
-    intensities[unit] = value;
+    intensities[bank] = value;
   }
 
   virtual void setDecodeMode(uint8_t value)
   {
     open();
-    for (int unit = MAX7219_DeviceMax - 1; unit > -1; --unit)
+    for (int bank = MAX7219_DeviceMax - 1; bank > -1; --bank)
       send(MAX7219_DecodeMode, value);
     close();
   }
@@ -189,42 +189,42 @@ public:
   virtual void test(int value)
   {
 #if 0
-    for (int unit = 0; unit < MAX7219_DeviceMax; ++unit)
-      printUnit(unit, value);
+    for (int bank = 0; bank < MAX7219_DeviceMax; ++bank)
+      printBank(bank, value);
 #else
     unsigned long ms = millis();
-    printUnit(0, "7654.3210");
-    printUnit(1, ms / 1000., 3);
-    printUnit(2, ms);
-    // printUnit(3, 32768);
-    printUnit(3, (long)32*1024);
-    printUnit(4, value);
+    printBank(0, "7654.3210");
+    printBank(1, ms / 1000., 3);
+    printBank(2, ms);
+    // printBank(3, 32768);
+    printBank(3, (long)32*1024);
+    printBank(4, value);
 #endif
   }
 
-  virtual void printUnit(int unit, unsigned long value)
+  virtual void printBank(int bank, unsigned long value)
   {
-    printUnit(unit, (double)value);
+    printBank(bank, (double)value);
   }
 
-  virtual void printUnit(int unit, long value)
+  virtual void printBank(int bank, long value)
   {
-    printUnit(unit, (double)value);
+    printBank(bank, (double)value);
   }
 
-  virtual void printUnit(int unit, int value)
+  virtual void printBank(int bank, int value)
   {
-    printUnit(unit, (double)value);
+    printBank(bank, (double)value);
   }
 
-  void printUnit(int unit, double value, unsigned char prec = 0)
+  void printBank(int bank, double value, unsigned char prec = 0)
   {
     char buf[32];
     dtostrf(value, 0, prec, buf);
-    printUnit(unit, buf);
+    printBank(bank, buf);
   }
 
-  virtual void printUnit(int unit, const char* s)
+  virtual void printBank(int bank, const char* s)
   {
     if (s)
     {
@@ -233,10 +233,10 @@ public:
       {
         int col = 0;
 
-        // clear the unit
+        // clear the bank
         for (int i = 0; i < MAX7219_DigitCount; ++i)
         {
-          buffer[unit][i] = CodeB_Space;
+          buffer[bank][i] = CodeB_Space;
         }
 
         // find number characters + space
@@ -245,40 +245,40 @@ public:
           uint8_t c = s[len - 1 - i];
           if (c >= '0' && c <= '9')
           {
-            buffer[unit][col] = (c - '0') | (buffer[unit][col] & CodeB_DP ? CodeB_DP : 0);
+            buffer[bank][col] = (c - '0') | (buffer[bank][col] & CodeB_DP ? CodeB_DP : 0);
             ++col;
           }
           else
           // numeral
           if (c == '.' || c == ',')
           {
-            if (buffer[unit][col] & CodeB_DP)
+            if (buffer[bank][col] & CodeB_DP)
             {
-              buffer[unit][col] = CodeB_Space | CodeB_DP;
+              buffer[bank][col] = CodeB_Space | CodeB_DP;
               ++col;
             }
             if (col < MAX7219_DigitCount)
-              buffer[unit][col] |= CodeB_DP;
+              buffer[bank][col] |= CodeB_DP;
           }
           else
           // sign
           if (c == '-')
           {
-            buffer[unit][col] = CodeB_Minus | (buffer[unit][col] & CodeB_DP ? CodeB_DP : 0);
+            buffer[bank][col] = CodeB_Minus | (buffer[bank][col] & CodeB_DP ? CodeB_DP : 0);
             ++col;
           }
           else
           // exponent
           if (c == 'E' || c == 'e')
           {
-            buffer[unit][col] = CodeB_E | (buffer[unit][col] & CodeB_DP ? CodeB_DP : 0);
+            buffer[bank][col] = CodeB_E | (buffer[bank][col] & CodeB_DP ? CodeB_DP : 0);
             ++col;
           }
           else
           // space
           if (c == ' ')
           {
-            buffer[unit][col] = CodeB_Space | (buffer[unit][col] & CodeB_DP ? CodeB_DP : 0);
+            buffer[bank][col] = CodeB_Space | (buffer[bank][col] & CodeB_DP ? CodeB_DP : 0);
             ++col;
           }
         }

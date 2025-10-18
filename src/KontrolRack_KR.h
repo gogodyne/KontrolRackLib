@@ -12,28 +12,42 @@ namespace KontrolRack {
 
 namespace KR {
 
-typedef std::function<void(uint8_t index)> DrawUnitCallback;
+enum class BankSize : uint8_t
+{
+  Mono = 1,
+  Dual = 2,
+  Quad = 4
+};
+
+enum class ModuleMode : int8_t
+{
+  Normal = 0,
+  Select,
+  Edit,
+};
+
+typedef std::function<void(uint8_t index)> DrawBankCallback;
 
 ////////////////////////////////////////////////////////////////////////////////
-// A "Unit" is a group of one or more devices intended to be one of an array of identical Units.
-struct UnitInfo
+// A group of one or more devices intended to be part of an array of identical groups.
+struct Bank
 {
   // set to draw the next frame
   bool isDirty = true;
   // set to reset the Dirty flag after drawing; it will clear otherwise
   bool autoDirty = true;
-  // set to perform drawing for this unit; no drawing if null
-  DrawUnitCallback onDrawUnit = nullptr;
+  // set to perform drawing for this bank; no drawing if null
+  DrawBankCallback onDrawBank = nullptr;
 
-  virtual void Set(DrawUnitCallback onDrawUnit, bool autoDirty)
+  virtual void Set(DrawBankCallback onDrawBank, bool autoDirty)
   {
-    this->onDrawUnit = onDrawUnit;
+    this->onDrawBank = onDrawBank;
     this->autoDirty = autoDirty;
   }
 
-  virtual void DrawUnit(uint8_t index)
+  virtual void DrawBank(uint8_t index)
   {
-    if (onDrawUnit && isDirty) onDrawUnit(index);
+    if (onDrawBank && isDirty) onDrawBank(index);
     isDirty = autoDirty;
   }
 };
@@ -56,20 +70,23 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 // A Module that supports I2C devices.
+// Also supports a rotary encoder with a button.
 class ModuleI2C : public Module
 {
 public:
   using Parent = Module;
 
+  // I2C
   TwoWire& wire;
   I2cSwitch i2cSwitch;
+  // Encoder/button
   EncBtn encBtn;
   bool useEncBtn = false;
 
-  DrawUnitCallback onDrawUnit;
+  DrawBankCallback onDrawBank;
 
-  UnitInfo* _unitInfos = nullptr;
-  int8_t unitSelected = 0;
+  Bank* _banks = nullptr;
+  int8_t bankSelected = 0;
   ModuleMode moduleMode = ModuleMode::Normal;
   timing_t moduleModeTimeout = 0;
   // keeps the highlight solid while the selection is changing
@@ -81,7 +98,7 @@ public:
   {}
 
   // This defines the size of the bank
-  virtual uint8_t getUnitCount() const = 0;
+  virtual uint8_t getBankSize() const = 0;
 
   using Parent::begin;
   // to disable enc/btn: positionCount < 1
@@ -121,23 +138,23 @@ public:
     }
   }
 
-  // Draw all bank units.
+  // Draw all banks.
   virtual void draw()
   {
-    for (int i = 0; i < getUnitCount(); ++i)
+    for (int i = 0; i < getBankSize(); ++i)
     {
-      drawUnit(i);
+      drawBank(i);
     }
   }
 
-  // Draw a bank unit.
-  virtual void drawUnit(uint8_t index)
+  // Draw a bank.
+  virtual void drawBank(uint8_t index)
   {
-    openUnitPorts(index);
+    openBankPorts(index);
 
     // callback
-    // if (onDrawUnit) onDrawUnit(index);
-    if (_unitInfos) _unitInfos[index].DrawUnit(index);
+    // if (onDrawBank) onDrawBank(index);
+    if (_banks) _banks[index].DrawBank(index);
   }
 
   // Extend the highlight emphasis.
@@ -146,22 +163,22 @@ public:
     highlightTimeout = timing.ms + 500;
   }
 
-  // Select a bank unit.
-  virtual int8_t setUnitSelected(int8_t index)
+  // Select a bank.
+  virtual int8_t setBankSelected(int8_t index)
   {
     resetHighlightTimeout();
     resetModuleModeTimeout();
-    unitSelected = constrain(index, 0, getUnitCount() - 1);
+    bankSelected = constrain(index, 0, getBankSize() - 1);
 
-    return unitSelected;
+    return bankSelected;
   }
 
-  // Select next/prev bank unit.
-  virtual int8_t cycleUnitSelected(int delta)
+  // Select next/prev bank.
+  virtual int8_t cycleBankSelected(int delta)
   {
-    setUnitSelected(unitSelected + delta);
+    setBankSelected(bankSelected + delta);
 
-    return unitSelected;
+    return bankSelected;
   }
 
   // Extend the mode timeout.
@@ -196,9 +213,9 @@ public:
     return moduleMode;
   }
 
-  // Open the Switch ports for a bank unit [0-3].
-  // (0-3) also opens (4-7); up to 4 units of 2 devices each, on 8-channel MUX.
-  virtual void openUnitPorts(uint8_t index)
+  // Open the Switch ports for a bank [0-3].
+  // (0-3) also opens (4-7); up to 4 banks of 2 devices each, on 8-channel MUX.
+  virtual void openBankPorts(uint8_t index)
   {
     index = index & 0b11;
     uint8_t portBits = (bit(index) << 4) | bit(index);

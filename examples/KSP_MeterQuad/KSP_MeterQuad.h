@@ -8,17 +8,17 @@
 using namespace KontrolRack;
 
 ////////////////////////////////////////////////////////////////////////////////
-class KSP_MeterQuad : public KR::MeterQuad
+class KSP_MeterQuad : public KR::Meter24Quad
 {
 public:
-  using Parent = KR::MeterQuad;
+  using Parent = KR::Meter24Quad;
 
   // Data for display
-  struct UnitData
+  struct BankData
   {
     uint8_t level = 0;
   };
-  UnitData unitDatas[(uint8_t)KR::BankUnitCount::Quad];
+  BankData bankDatas[(uint8_t)KR::BankSize::Quad];
 
   KSP_MeterQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -29,11 +29,11 @@ public:
   {
     Parent::begin(30, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24_ADDRESS, EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
 
-    // Set the Module/Unit draw callbacks
-    unitInfos[0].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
-    unitInfos[1].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
-    unitInfos[2].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
-    unitInfos[3].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
+    // Set the Module/Bank draw callbacks
+    banks[0].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
+    banks[1].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
+    banks[2].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
+    banks[3].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
   }
 
   virtual void loop(bool dirtyByEncoder = true) override
@@ -64,12 +64,12 @@ public:
         {
           if (moduleMode == KR::ModuleMode::Select)
           {
-            setUnitSelected(encBtn.enc.slider.position);
+            setBankSelected(encBtn.enc.slider.position);
           }
           else
           if (moduleMode == KR::ModuleMode::Edit)
           {
-            setUnitLevel(encBtn.enc.slider.position);
+            setBankLevel(encBtn.enc.slider.position);
           }
         }
       }
@@ -80,30 +80,30 @@ public:
   {
       if (moduleMode == KR::ModuleMode::Select)
       {
-        encBtn.enc.slider.set(0, getUnitCount() - 1, false, unitSelected);
+        encBtn.enc.slider.set(0, getBankSize() - 1, false, bankSelected);
       }
       else
       if (moduleMode == KR::ModuleMode::Edit)
       {
-        encBtn.enc.slider.set(0, led24.getSize() - 1, false, unitDatas[unitSelected].level);
+        encBtn.enc.slider.set(0, led24.getSize() - 1, false, bankDatas[bankSelected].level);
       }
   }
 
-  virtual uint8_t setUnitLevel(int8_t level)
+  virtual uint8_t setBankLevel(int8_t level)
   {
     resetHighlightTimeout();
     resetModuleModeTimeout();
 
-    unitDatas[unitSelected].level = constrain(level, 0, led24.getSize() - 1);
+    bankDatas[bankSelected].level = constrain(level, 0, led24.getSize() - 1);
 
-    return unitDatas[unitSelected].level;
+    return bankDatas[bankSelected].level;
   }
 
-  virtual uint8_t cycleUnitLevel(int8_t delta)
+  virtual uint8_t cycleBankLevel(int8_t delta)
   {
-    setUnitLevel(unitDatas[unitSelected].level + delta);
+    setBankLevel(bankDatas[bankSelected].level + delta);
 
-    return unitDatas[unitSelected].level;
+    return bankDatas[bankSelected].level;
   }
 
   //------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ public:
   // Meter Quad
   virtual void onDrawMeterQuad_Index(uint8_t index)
   {
-    uint8_t unitLevel = unitDatas[index].level;
+    uint8_t bankLevel = bankDatas[index].level;
 
     // OLED
     {
@@ -131,17 +131,17 @@ public:
       drawLedHighlight(index);
 
       {
-        if (unitLevel > 0)
+        if (bankLevel > 0)
         {
-          led24.setBar(unitLevel - 1, LED_GREEN);
+          led24.setBar(bankLevel - 1, LED_GREEN);
         }
-        if (unitLevel < led24.getSize())
+        if (bankLevel < led24.getSize())
         {
-          led24.setBar(unitLevel, LED_YELLOW);
+          led24.setBar(bankLevel, LED_YELLOW);
         }
-        if (unitLevel < led24.getSize() - 1)
+        if (bankLevel < led24.getSize() - 1)
         {
-          led24.setBar(unitLevel + 1, LED_RED);
+          led24.setBar(bankLevel + 1, LED_RED);
         }
       }
 
@@ -151,7 +151,7 @@ public:
 
   virtual void onDrawMeterQuad_Time(uint8_t index)
   {
-    uint8_t unitLevel = unitDatas[index].level;
+    uint8_t bankLevel = bankDatas[index].level;
 
     // OLED
     {
@@ -169,17 +169,17 @@ public:
       drawLedHighlight(index);
 
       {
-        if (unitLevel > 0)
+        if (bankLevel > 0)
         {
-          led24.setBar(unitLevel - 1, LED_GREEN);
+          led24.setBar(bankLevel - 1, LED_GREEN);
         }
-        if (unitLevel < led24.getSize())
+        if (bankLevel < led24.getSize())
         {
-          led24.setBar(unitLevel, LED_YELLOW);
+          led24.setBar(bankLevel, LED_YELLOW);
         }
-        if (unitLevel < led24.getSize() - 1)
+        if (bankLevel < led24.getSize() - 1)
         {
-          led24.setBar(unitLevel + 1, LED_RED);
+          led24.setBar(bankLevel + 1, LED_RED);
         }
       }
 
@@ -189,7 +189,7 @@ public:
 
   virtual void onDrawMeterQuad_Level(uint8_t index)
   {
-    uint8_t unitLevel = unitDatas[index].level;
+    uint8_t bankLevel = bankDatas[index].level;
 
     // OLED
     {
@@ -198,14 +198,14 @@ public:
 
       {
         oled12864.gfx.setTextSize(6);
-        oled12864.gfx.printf("%02d", unitLevel);
+        oled12864.gfx.printf("%02d", bankLevel);
         oled12864.gfx.setTextSize(2);
         oled12864.gfx.printf("#%d\n", index);
 
         oled12864.gfx.setTextSize(6);
         oled12864.gfx.print("  ");
         oled12864.gfx.setTextSize(2);
-        oled12864.gfx.printf("%3d%%\n", (uint8_t)(((float)unitLevel / ((float)led24.getSize() - 1)) * 100));
+        oled12864.gfx.printf("%3d%%\n", (uint8_t)(((float)bankLevel / ((float)led24.getSize() - 1)) * 100));
 
         oled12864.gfx.setTextSize(6);
         oled12864.gfx.print("  ");
@@ -224,17 +224,17 @@ public:
       drawLedHighlight(index);
 
       {
-        if (unitLevel > 0)
+        if (bankLevel > 0)
         {
-          led24.setBar(unitLevel - 1, LED_GREEN);
+          led24.setBar(bankLevel - 1, LED_GREEN);
         }
-        if (unitLevel < led24.getSize())
+        if (bankLevel < led24.getSize())
         {
-          led24.setBar(unitLevel, LED_YELLOW);
+          led24.setBar(bankLevel, LED_YELLOW);
         }
-        if (unitLevel < led24.getSize() - 1)
+        if (bankLevel < led24.getSize() - 1)
         {
-          led24.setBar(unitLevel + 1, LED_RED);
+          led24.setBar(bankLevel + 1, LED_RED);
         }
       }
 
