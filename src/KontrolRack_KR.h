@@ -39,11 +39,28 @@ struct UnitInfo
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// A "Module" is a group of one or more devices or Units.
+// A group of one or more devices.
 class Module
 {
 public:
   Timing timing;
+
+  Module()
+  {}
+
+  virtual void begin(fps_t fps, bool test)
+  {
+    timing.begin(fps);
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// A Module that supports I2C devices.
+class ModuleI2C : public Module
+{
+public:
+  using Parent = Module;
+
   TwoWire& wire;
   I2cSwitch i2cSwitch;
   EncBtn encBtn;
@@ -58,17 +75,20 @@ public:
   // keeps the highlight solid while the selection is changing
   timing_t highlightTimeout = 0;
 
-  Module(TwoWire& inWire)
-  : wire(inWire)
+  ModuleI2C(TwoWire& inWire)
+  : Parent()
+  , wire(inWire)
   {}
 
   // This defines the size of the bank
   virtual uint8_t getUnitCount() const = 0;
 
+  using Parent::begin;
   // to disable enc/btn: positionCount < 1
-  virtual void begin(uint8_t switchAddress, EncBtn::Info encInfo, fps_t fps, bool test)
+  virtual void begin(fps_t fps, bool test, uint8_t switchAddress, EncBtn::Info encInfo)
   {
-    timing.begin(fps);
+    Parent::begin(fps, test);
+
     if (encInfo.positionCount > 0)
     {
       encBtn.begin(encInfo);

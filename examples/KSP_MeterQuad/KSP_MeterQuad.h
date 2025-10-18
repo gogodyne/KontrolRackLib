@@ -27,7 +27,7 @@ public:
   using Parent::begin;
   virtual void begin()
   {
-    Parent::begin(SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24_ADDRESS, EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S), 30, false);
+    Parent::begin(30, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24_ADDRESS, EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
 
     // Set the Module/Unit draw callbacks
     unitInfos[0].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);

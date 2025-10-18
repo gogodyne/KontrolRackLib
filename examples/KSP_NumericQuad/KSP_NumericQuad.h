@@ -27,7 +27,7 @@ public:
   using Parent::begin;
   virtual void begin()
   {
-    Parent::begin(SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S), 30, false);
+    Parent::begin(30, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
 
     // Set the Module/Unit draw callbacks
     unitInfos[0].Set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Level, this, std::placeholders::_1), true);

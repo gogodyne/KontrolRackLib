@@ -18,10 +18,10 @@ namespace KR {
 // Array unit:
 // - OLED 128x64 (I2C); unit label
 // - Adafruit 24-segment Bargraph (I2C); unit meter
-class LED24OLED12864 : public Module
+class LED24OLED12864 : public ModuleI2C
 {
 public:
-  using Parent = Module;
+  using Parent = ModuleI2C;
 
   OLED12864 oled12864;
   LED24 led24;
@@ -32,9 +32,9 @@ public:
   {}
 
   using Parent::begin;
-  virtual void begin(uint8_t switchAddress, uint8_t oledAddress, uint8_t led24Address, EncBtn::Info encInfo, fps_t fps, bool test)
+  virtual void begin(fps_t fps, bool test, uint8_t switchAddress, uint8_t oledAddress, uint8_t led24Address, EncBtn::Info encInfo)
   {
-    Parent::begin(switchAddress, encInfo, fps, test);
+    Parent::begin(fps, test, switchAddress, encInfo);
 
     // init I2C devices
     for (int i = 0; i < getUnitCount(); ++i)
