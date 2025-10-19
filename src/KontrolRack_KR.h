@@ -47,20 +47,7 @@ struct Bank
     }
   };
 
-  typedef std::function<void(uint8_t index, bool isDirty)> DrawCallback;
-
-  // set to perform drawing for this bank; no drawing if null
-  DrawCallback onDraw = nullptr;
-
-  virtual void setDrawCallback(DrawCallback drawCallback)
-  {
-    this->onDraw = drawCallback;
-  }
-
-  virtual void draw(uint8_t index, bool isDirty)
-  {
-    if (onDraw) onDraw(index, isDirty);
-  }
+  int mode = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -181,9 +168,6 @@ public:
   virtual void drawBank(uint8_t index, bool isDirty)
   {
     openBankPorts(index);
-
-    // callback
-    if (_banks) _banks[index].draw(index, isDirty);
   }
 
   // Extend the highlight emphasis.

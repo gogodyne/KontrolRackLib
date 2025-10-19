@@ -13,6 +13,14 @@ class KSP_MeterQuad : public KR::Meter24Quad
 public:
   using Parent = KR::Meter24Quad;
 
+  enum BankMode
+  {
+    Off,
+    Index,
+    Time,
+    Level,
+  };
+
   // Data for display
   struct BankData
   {
@@ -29,8 +37,7 @@ public:
   {
     for (int i = 0; i < getBankSize(); ++i)
     {
-      // Set the Bank draw callbacks.
-      setBankToDraw_Level(i);
+      banks[i].mode = BankMode::Level;
 
       // Start the devices.
       led24Devices[i].begin(12);
@@ -113,157 +120,81 @@ public:
   //------------------------------------------------------------------------------
   // Drawing
 
-  virtual void setBankToDraw_Index(uint8_t bankIndex)
+  virtual void drawBank(uint8_t index, bool isDirty) override
   {
-      banks[bankIndex].setDrawCallback(
-        [this](uint8_t index, bool isDirty)
+    Parent::drawBank(index, isDirty);
+
+    uint8_t bankLevel = bankDatas[index].level;
+
+    // OLED
+    if (isDirty || oled12864Devices[index].timing.isTick)
+    {
+      oled12864.clear();
+      drawOledHighlight(index);
+
+      switch (banks[index].mode)
+      {
+      case BankMode::Index:
         {
-          uint8_t bankLevel = bankDatas[index].level;
-
-          // OLED
-          if (oled12864Devices[index].timing.isTick)
-          {
-            oled12864.clear();
-            drawOledHighlight(index);
-
-            oled12864.gfx.setTextSize(2);
-            oled12864.gfx.printf("#%d\n", index);
-
-            oled12864.render();
-          }
-
-          // LED24
-          if (led24Devices[index].timing.isTick)
-          {
-            led24.clear();
-            drawLedHighlight(index);
-
-            {
-              if (bankLevel > 0)
-              {
-                led24.setBar(bankLevel - 1, LED_GREEN);
-              }
-              if (bankLevel < led24.getSize())
-              {
-                led24.setBar(bankLevel, LED_YELLOW);
-              }
-              if (bankLevel < led24.getSize() - 1)
-              {
-                led24.setBar(bankLevel + 1, LED_RED);
-              }
-            }
-
-            led24.render();
-          }
+          oled12864.gfx.setTextSize(2);
+          oled12864.gfx.printf("#%d\n", index);
         }
-        );
-  }
+        break;
 
-  virtual void setBankToDraw_Time(uint8_t bankIndex)
-  {
-      banks[bankIndex].setDrawCallback(
-        [this](uint8_t index, bool isDirty)
+      case BankMode::Time:
         {
-          uint8_t bankLevel = bankDatas[index].level;
-
-          // OLED
-          if (oled12864Devices[index].timing.isTick)
-          {
-            oled12864.clear();
-            drawOledHighlight(index);
-
-            oled12864.gfx.printf("\n%d", (int)timing.ms);
-
-            oled12864.render();
-          }
-
-          // LED24
-          if (led24Devices[index].timing.isTick)
-          {
-            led24.clear();
-            drawLedHighlight(index);
-
-            {
-              if (bankLevel > 0)
-              {
-                led24.setBar(bankLevel - 1, LED_GREEN);
-              }
-              if (bankLevel < led24.getSize())
-              {
-                led24.setBar(bankLevel, LED_YELLOW);
-              }
-              if (bankLevel < led24.getSize() - 1)
-              {
-                led24.setBar(bankLevel + 1, LED_RED);
-              }
-            }
-
-            led24.render();
-          }
+          oled12864.gfx.printf("\n%d", (int)timing.ms);
         }
-        );
-  }
+        break;
 
-  virtual void setBankToDraw_Level(uint8_t bankIndex)
-  {
-      banks[bankIndex].setDrawCallback(
-        [this](uint8_t index, bool isDirty)
+      case BankMode::Level:
         {
-          uint8_t bankLevel = bankDatas[index].level;
+          oled12864.gfx.setTextSize(6);
+          oled12864.gfx.printf("%02d", bankLevel);
+          oled12864.gfx.setTextSize(2);
+          oled12864.gfx.printf("#%d\n", index);
 
-          // OLED
-          if (oled12864Devices[index].timing.isTick)
-          {
-            oled12864.clear();
-            drawOledHighlight(index);
+          oled12864.gfx.setTextSize(6);
+          oled12864.gfx.print("  ");
+          oled12864.gfx.setTextSize(2);
+          oled12864.gfx.printf("%3d%%\n", (uint8_t)(((float)bankLevel / ((float)led24.getSize() - 1)) * 100));
 
-            {
-              oled12864.gfx.setTextSize(6);
-              oled12864.gfx.printf("%02d", bankLevel);
-              oled12864.gfx.setTextSize(2);
-              oled12864.gfx.printf("#%d\n", index);
+          oled12864.gfx.setTextSize(6);
+          oled12864.gfx.print("  ");
+          oled12864.gfx.setTextSize(2);
+          oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
 
-              oled12864.gfx.setTextSize(6);
-              oled12864.gfx.print("  ");
-              oled12864.gfx.setTextSize(2);
-              oled12864.gfx.printf("%3d%%\n", (uint8_t)(((float)bankLevel / ((float)led24.getSize() - 1)) * 100));
-
-              oled12864.gfx.setTextSize(6);
-              oled12864.gfx.print("  ");
-              oled12864.gfx.setTextSize(2);
-              oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
-
-              oled12864.gfx.printf("\n%d", (int)timing.ms);
-            }
-
-            oled12864.render();
-          }
-
-          // LED24
-          if (led24Devices[index].timing.isTick)
-          {
-            led24.clear();
-            drawLedHighlight(index);
-
-            {
-              if (bankLevel > 0)
-              {
-                led24.setBar(bankLevel - 1, LED_GREEN);
-              }
-              if (bankLevel < led24.getSize())
-              {
-                led24.setBar(bankLevel, LED_YELLOW);
-              }
-              if (bankLevel < led24.getSize() - 1)
-              {
-                led24.setBar(bankLevel + 1, LED_RED);
-              }
-            }
-
-            led24.render();
-          }
+          oled12864.gfx.printf("\n%d", (int)timing.ms);
         }
-        );
+        break;
+      }
+
+      oled12864.render();
+    }
+
+    // LED24
+    if (isDirty || led24Devices[index].timing.isTick)
+    {
+      led24.clear();
+      drawLedHighlight(index);
+
+      {
+        if (bankLevel > 0)
+        {
+          led24.setBar(bankLevel - 1, LED_GREEN);
+        }
+        if (bankLevel < led24.getSize())
+        {
+          led24.setBar(bankLevel, LED_YELLOW);
+        }
+        if (bankLevel < led24.getSize() - 1)
+        {
+          led24.setBar(bankLevel + 1, LED_RED);
+        }
+      }
+
+      led24.render();
+    }
   }
 };
 
