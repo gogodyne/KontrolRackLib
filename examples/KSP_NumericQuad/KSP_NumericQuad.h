@@ -27,17 +27,19 @@ public:
   using Parent::begin;
   virtual void begin()
   {
+    // Start the devices.
     num8Device.begin(12);
+
     for (int i = 0; i < getBankSize(); ++i)
     {
       // Set the Bank draw callbacks.
-      banks[i].set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Time, this, std::placeholders::_1), true);
+      setBankToDraw_Time(i);
 
       // Start the devices.
-      oled12864Devices[i].begin(24);
+      oled12864Devices[i].begin(12);
     }
 
-    Parent::begin(24, true, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    Parent::begin(12, true, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
   }
 
   virtual void loop() override
@@ -113,77 +115,70 @@ public:
   //------------------------------------------------------------------------------
   // Drawing
 
-  // Numeric Quad
-  virtual void onDrawNumericQuad_Index(uint8_t index)
+  virtual void setBankToDraw_Time(uint8_t bankIndex)
   {
-    // OLED
-    if (oled12864Devices[index].timing.isTick)
-    {
-      oled12864.clear();
+    banks[bankIndex].setDrawCallback(
+      [this](uint8_t index, bool isDirty)
+      {
+        // OLED
+        if (oled12864Devices[index].timing.isTick)
+        {
+          oled12864.clear();
 
-      oled12864.gfx.setTextSize(8);
-      oled12864.gfx.printf("%d!", index);
+          oled12864.gfx.setTextSize(4);
+          oled12864.gfx.println("ms");
+          oled12864.gfx.setTextSize(2);
+          oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
 
-      drawOledHighlight(index);
-      oled12864.render();
-    }
+          drawOledHighlight(index);
+          oled12864.render();
+        }
+
+        // Numeric LED
+        if (num8Device.timing.isTick)
+        {
+          // Numeric is not I2C; clear is done in the draw
+
+          num8.printBank(index, timing.ms);
+
+          drawNumHighlight(index);
+          // Numeric is not I2C; render is done in the draw
+        }
+      }
+      );
   }
   
-  virtual void onDrawNumericQuad_Time(uint8_t index)
+  virtual void setBankToDraw_Level(uint8_t bankIndex)
   {
-    // OLED
-    if (oled12864Devices[index].timing.isTick)
-    {
-      oled12864.clear();
+    banks[bankIndex].setDrawCallback(
+      [this](uint8_t index, bool isDirty)
+      {
+        // OLED
+        if (oled12864Devices[index].timing.isTick)
+        {
+          oled12864.clear();
 
-      oled12864.gfx.setTextSize(4);
-      oled12864.gfx.println("ms");
-      oled12864.gfx.setTextSize(2);
-      // oled12864.gfx.println("Time");
-      oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
+          oled12864.gfx.setTextSize(4);
+          oled12864.gfx.printf("%d\n", bankDatas[index].level);
+          oled12864.gfx.setTextSize(2);
+          oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
 
-      drawOledHighlight(index);
-      oled12864.render();
-    }
+          drawOledHighlight(index);
+          oled12864.render();
+        }
 
-    // Numeric LED
-    if (num8Device.timing.isTick)
-    {
-      // Numeric is not I2C; clear is done in the draw
+        // Numeric LED
+        if (num8Device.timing.isTick)
+        {
+          // Numeric is not I2C; clear is done in the draw
 
-      num8.printBank(index, timing.ms);
+          num8.printBank(index, bankDatas[index].level);
 
-      drawNumHighlight(index);
-      // Numeric is not I2C; render is done in the draw
-    }
-  }
-  
-  virtual void onDrawNumericQuad_Level(uint8_t index)
-  {
-    // OLED
-    if (oled12864Devices[index].timing.isTick)
-    {
-      oled12864.clear();
-
-      oled12864.gfx.setTextSize(4);
-      oled12864.gfx.printf("%d\n", bankDatas[index].level);
-      oled12864.gfx.setTextSize(2);
-      oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
-
-      drawOledHighlight(index);
-      oled12864.render();
-    }
-
-    // Numeric LED
-    if (num8Device.timing.isTick)
-    {
-      // Numeric is not I2C; clear is done in the draw
-
-      num8.printBank(index, bankDatas[index].level);
-
-      drawNumHighlight(index);
-      // Numeric is not I2C; render is done in the draw
-    }
+          drawNumHighlight(index);
+          // Numeric is not I2C; render is done in the draw
+        }
+      }
+      );
   }
 };
 

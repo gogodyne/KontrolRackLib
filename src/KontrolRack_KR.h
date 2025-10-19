@@ -49,24 +49,17 @@ struct Bank
 
   typedef std::function<void(uint8_t index, bool isDirty)> DrawCallback;
 
-  // set to draw the next frame
-  bool isDirty = true;
-  // set to reset the Dirty flag after drawing; it will clear otherwise
-  bool autoDirty = true;
   // set to perform drawing for this bank; no drawing if null
   DrawCallback onDraw = nullptr;
 
-  virtual void set(DrawCallback onDraw, bool autoDirty)
+  virtual void setDrawCallback(DrawCallback drawCallback)
   {
-    this->onDraw = onDraw;
-    this->autoDirty = autoDirty;
+    this->onDraw = drawCallback;
   }
 
   virtual void draw(uint8_t index, bool isDirty)
   {
-    this->isDirty = isDirty || autoDirty;
-
-    if (onDraw) onDraw(index, this->isDirty);
+    if (onDraw) onDraw(index, isDirty);
   }
 };
 
