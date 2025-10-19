@@ -58,7 +58,7 @@ public:
       if (encBtn.btn.didPress)
       {
         // set mode
-        cycleBankMode();
+        cycleBankSelectMode();
         setEncRange();
       }
 
@@ -66,20 +66,20 @@ public:
       if (encBtn.encDelta)
       {
         // change to select/edit?
-        if (bankMode == KR::BankMode::Normal)
+        if (bankSelectMode == KR::BankSelectMode::Normal)
         {
           // set mode
-          setBankMode(KR::BankMode::Select);
+          setBankSelectMode(KR::BankSelectMode::Select);
           setEncRange();
         }
         else
         {
-          if (bankMode == KR::BankMode::Select)
+          if (bankSelectMode == KR::BankSelectMode::Select)
           {
             setBankSelected(encBtn.enc.slider.position);
           }
           else
-          if (bankMode == KR::BankMode::Edit)
+          if (bankSelectMode == KR::BankSelectMode::Edit)
           {
             setBankLevel(encBtn.enc.slider.position);
           }
@@ -90,21 +90,21 @@ public:
 
   virtual void setEncRange()
   {
-      if (bankMode == KR::BankMode::Select)
-      {
-        encBtn.enc.slider.set(0, getBankSize() - 1, false, bankSelected);
-      }
-      else
-      if (bankMode == KR::BankMode::Edit)
-      {
-        encBtn.enc.slider.set(0, LEVEL_RANGE - 1, false, bankDatas[bankSelected].level);
-      }
+    if (bankSelectMode == KR::BankSelectMode::Select)
+    {
+      encBtn.enc.slider.set(0, getBankSize() - 1, false, bankSelected);
+    }
+    else
+    if (bankSelectMode == KR::BankSelectMode::Edit)
+    {
+      encBtn.enc.slider.set(0, LEVEL_RANGE - 1, false, bankDatas[bankSelected].level);
+    }
   }
 
   virtual uint8_t setBankLevel(int8_t level)
   {
     resetHighlightTimeout();
-    resetBankModeTimeout();
+    resetBankSelectModeTimeout();
 
     bankDatas[bankSelected].level = constrain(level, 0, LEVEL_RANGE - 1);
 
