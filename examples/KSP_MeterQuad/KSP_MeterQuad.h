@@ -27,18 +27,22 @@ public:
   using Parent::begin;
   virtual void begin()
   {
-    Parent::begin(30, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24_ADDRESS, EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    for (int i = 0; i < getBankSize(); ++i)
+    {
+      // Set the Bank draw callbacks.
+      banks[i].set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
 
-    // Set the Module/Bank draw callbacks
-    banks[0].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
-    banks[1].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
-    banks[2].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
-    banks[3].Set(std::bind(&KSP_MeterQuad::onDrawMeterQuad_Level, this, std::placeholders::_1), true);
+      // Start the devices.
+      led24Devices[i].begin(12);
+      oled12864Devices[i].begin(24);
+    }
+
+    Parent::begin(24, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24_ADDRESS, EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
   }
 
-  virtual void loop(bool dirtyByEncoder = true) override
+  virtual void loop() override
   {
-    Parent::loop(dirtyByEncoder);
+    Parent::loop();
 
     // Input...
     {
@@ -192,6 +196,7 @@ public:
     uint8_t bankLevel = bankDatas[index].level;
 
     // OLED
+    if (oled12864Devices[index].timing.isTick)
     {
       oled12864.clear();
       drawOledHighlight(index);
@@ -219,6 +224,7 @@ public:
     }
 
     // LED24
+    if (led24Devices[index].timing.isTick)
     {
       led24.clear();
       drawLedHighlight(index);

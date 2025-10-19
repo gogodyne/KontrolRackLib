@@ -26,34 +26,53 @@ enum class BankMode : int8_t
   Edit,
 };
 
-typedef std::function<void(uint8_t index)> DrawBankCallback;
-
 ////////////////////////////////////////////////////////////////////////////////
 // A group of one or more devices intended to be part of an array of identical groups.
 struct Bank
 {
+  // An output or display device that needs a throttled update rate.
+  // Used for each device in a row.
+  struct Device
+  {
+    Timing timing;
+
+    virtual void begin(timing_t fps)
+    {
+      timing.begin(fps);
+    }
+
+    virtual void loop()
+    {
+      timing.loop();
+    }
+  };
+
+  typedef std::function<void(uint8_t index, bool isDirty)> DrawCallback;
+
   // set to draw the next frame
   bool isDirty = true;
   // set to reset the Dirty flag after drawing; it will clear otherwise
   bool autoDirty = true;
   // set to perform drawing for this bank; no drawing if null
-  DrawBankCallback onDrawBank = nullptr;
+  DrawCallback onDraw = nullptr;
 
-  virtual void Set(DrawBankCallback onDrawBank, bool autoDirty)
+  virtual void set(DrawCallback onDraw, bool autoDirty)
   {
-    this->onDrawBank = onDrawBank;
+    this->onDraw = onDraw;
     this->autoDirty = autoDirty;
   }
 
-  virtual void DrawBank(uint8_t index)
+  virtual void draw(uint8_t index, bool isDirty)
   {
-    if (onDrawBank && isDirty) onDrawBank(index);
-    isDirty = autoDirty;
+    this->isDirty = isDirty || autoDirty;
+
+    if (onDraw) onDraw(index, this->isDirty);
   }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // A group of one or more devices.
+// This class layer handles device looping; child classes should override.
 class Module
 {
 public:
@@ -66,11 +85,19 @@ public:
   {
     timing.begin(fps);
   }
+
+  virtual void loop()
+  {
+    loopDevices();
+  }
+
+  virtual void loopDevices()
+  {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// A Module that supports I2C devices.
-// Also supports a rotary encoder with a button.
+// A Module that supports I2C devices through an I2C switch.
+// This class layer supports a rotary encoder with a button.
 class ModuleI2C : public Module
 {
 public:
@@ -83,8 +110,7 @@ public:
   EncBtn encBtn;
   bool useEncBtn = false;
 
-  DrawBankCallback onDrawBank;
-
+  // Banks
   Bank* _banks = nullptr;
   int8_t bankSelected = 0;
   BankMode bankMode = BankMode::Normal;
@@ -106,55 +132,65 @@ public:
   {
     Parent::begin(fps, test);
 
+    // Init encoder.
     if (encInfo.positionCount > 0)
     {
       encBtn.begin(encInfo);
       useEncBtn = true;
     }
 
-    // init I2C switch
+    // Init I2C switch.
     i2cSwitch.begin(switchAddress, wire);
     i2cSwitch.setPortBits(0);
   }
 
-  virtual void loop(bool dirtyByEncoder = true)
+  virtual void loop()
   {
+    Parent::loop();
+
     timing.loop();
     if (useEncBtn)
     {
       encBtn.loop();
     }
 
-    bool isDirty = (dirtyByEncoder && (encBtn.btn.didChange || encBtn.encDelta));
+    bool isDirty = (encBtn.btn.didChange || encBtn.encDelta);
+
+    // Draw the Module.
     if (timing.isTick || isDirty)
     {
       draw();
     }
 
-    // automatic mode timeout
+    // Always draw all banks.
+    drawBanks(isDirty);
+
+    // Automatic mode timeout.
     if (bankModeTimeout < timing.ms)
     {
       setBankMode(BankMode::Normal);
     }
   }
 
-  // Draw all banks.
   virtual void draw()
+  {
+  }
+
+  virtual void drawBanks(bool isDirty)
   {
     for (int i = 0; i < getBankSize(); ++i)
     {
-      drawBank(i);
+      drawBank(i, isDirty);
     }
   }
 
   // Draw a bank.
-  virtual void drawBank(uint8_t index)
+  virtual void drawBank(uint8_t index, bool isDirty)
   {
     openBankPorts(index);
 
     // callback
-    // if (onDrawBank) onDrawBank(index);
-    if (_banks) _banks[index].DrawBank(index);
+    if (_banks) _banks[index].draw(index, isDirty);
   }
 
   // Extend the highlight emphasis.

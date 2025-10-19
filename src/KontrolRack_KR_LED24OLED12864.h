@@ -25,6 +25,8 @@ public:
 
   OLED12864 oled12864;
   LED24 led24;
+  Bank::Device* _led24Devices = nullptr;
+  Bank::Device* _oled12864Devices = nullptr;
 
   LED24OLED12864(TwoWire& inWire)
   : Parent(inWire)
@@ -59,6 +61,15 @@ public:
           led24.render();
         }
       }
+    }
+  }
+
+  virtual void loopDevices() override
+  {
+    for (int i = 0; i < getBankSize(); ++i)
+    {
+      if (_led24Devices) _led24Devices[i].loop();
+      if (_oled12864Devices) _oled12864Devices[i].loop();
     }
   }
 
@@ -99,23 +110,28 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 // A meter display array module.
+// This class instantiates the desired number of arrays.
 template <BankSize BANKCOUNT>
 class Meter24 : public LED24OLED12864
 {
 public:
   Bank banks[(uint8_t)BANKCOUNT];
+  Bank::Device led24Devices[(uint8_t)BANKCOUNT];
+  Bank::Device oled12864Devices[(uint8_t)BANKCOUNT];
 
   Meter24(TwoWire& inWire)
   : LED24OLED12864(inWire)
   {
     _banks = banks;
+    _led24Devices = led24Devices;
+    _oled12864Devices = oled12864Devices;
   }
 
   virtual uint8_t getBankSize() const override { return (uint8_t)BANKCOUNT; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Bank arrays
+// Pre-sized Module types.
 typedef Meter24<BankSize::Mono> Meter24Mono;
 typedef Meter24<BankSize::Dual> Meter24Dual;
 typedef Meter24<BankSize::Quad> Meter24Quad;

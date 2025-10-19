@@ -27,18 +27,22 @@ public:
   using Parent::begin;
   virtual void begin()
   {
-    Parent::begin(30, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    num8Device.begin(12);
+    for (int i = 0; i < getBankSize(); ++i)
+    {
+      // Set the Bank draw callbacks.
+      banks[i].set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Time, this, std::placeholders::_1), true);
 
-    // Set the Module/Bank draw callbacks
-    banks[0].Set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Level, this, std::placeholders::_1), true);
-    banks[1].Set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Level, this, std::placeholders::_1), true);
-    banks[2].Set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Level, this, std::placeholders::_1), true);
-    banks[3].Set(std::bind(&KSP_NumericQuad::onDrawNumericQuad_Level, this, std::placeholders::_1), true);
+      // Start the devices.
+      oled12864Devices[i].begin(24);
+    }
+
+    Parent::begin(24, true, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
   }
 
-  virtual void loop(bool dirtyByEncoder = true) override
+  virtual void loop() override
   {
-    Parent::loop(dirtyByEncoder);
+    Parent::loop();
 
     // Input...
     {
@@ -113,6 +117,7 @@ public:
   virtual void onDrawNumericQuad_Index(uint8_t index)
   {
     // OLED
+    if (oled12864Devices[index].timing.isTick)
     {
       oled12864.clear();
 
@@ -127,18 +132,22 @@ public:
   virtual void onDrawNumericQuad_Time(uint8_t index)
   {
     // OLED
+    if (oled12864Devices[index].timing.isTick)
     {
       oled12864.clear();
 
+      oled12864.gfx.setTextSize(4);
+      oled12864.gfx.println("ms");
       oled12864.gfx.setTextSize(2);
-      // oled12864.gfx.printf("%d", (int)timing.ms);
-      oled12864.gfx.print("\nTime(ms)");
+      // oled12864.gfx.println("Time");
+      oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
 
       drawOledHighlight(index);
       oled12864.render();
     }
 
     // Numeric LED
+    if (num8Device.timing.isTick)
     {
       // Numeric is not I2C; clear is done in the draw
 
@@ -152,6 +161,7 @@ public:
   virtual void onDrawNumericQuad_Level(uint8_t index)
   {
     // OLED
+    if (oled12864Devices[index].timing.isTick)
     {
       oled12864.clear();
 
@@ -165,6 +175,7 @@ public:
     }
 
     // Numeric LED
+    if (num8Device.timing.isTick)
     {
       // Numeric is not I2C; clear is done in the draw
 

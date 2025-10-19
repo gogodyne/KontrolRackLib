@@ -24,8 +24,10 @@ class Num8OLED12864 : public ModuleI2C
 public:
   using Parent = ModuleI2C;
 
-  OLED12864 oled12864;
   Num8 num8;
+  OLED12864 oled12864;
+  Bank::Device num8Device;
+  Bank::Device* _oled12864Devices = nullptr;
 
   Num8OLED12864(TwoWire& inWire)
   : Parent(inWire)
@@ -64,12 +66,26 @@ public:
     }
   }
 
-  virtual void draw() override
+  virtual void loopDevices() override
+  {
+    num8Device.loop();
+
+    for (int i = 0; i < getBankSize(); ++i)
+    {
+      if (_oled12864Devices) _oled12864Devices[i].loop();
+    }
+  }
+
+  virtual void drawBanks(bool isDirty) override
   {
     // Numeric is not I2C; clear/render once
-    num8.clear();
-    Parent::draw();
-    num8.render();
+    if (num8Device.timing.isTick)
+      num8.clear();
+
+    Parent::drawBanks(isDirty);
+
+    if (num8Device.timing.isTick)
+      num8.render();
   }
 
   virtual void drawOledHighlight(uint8_t index)
@@ -109,23 +125,26 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 // A numeric display array module.
+// This class layer instantiates the desired number of arrays.
 template <BankSize BANKCOUNT>
 class Numeric8 : public Num8OLED12864
 {
 public:
   Bank banks[(uint8_t)BANKCOUNT];
+  Bank::Device oled12864Devices[(uint8_t)BANKCOUNT];
 
   Numeric8(TwoWire& inWire)
   : Num8OLED12864(inWire)
   {
     _banks = banks;
+    _oled12864Devices = oled12864Devices;
   }
 
   virtual uint8_t getBankSize() const override { return (uint8_t)BANKCOUNT; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Bank arrays
+// Pre-sized Module types.
 typedef Numeric8<BankSize::Mono> Numeric8Mono;
 typedef Numeric8<BankSize::Dual> Numeric8Dual;
 typedef Numeric8<BankSize::Quad> Numeric8Quad;
