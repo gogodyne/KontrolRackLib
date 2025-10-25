@@ -1,7 +1,7 @@
 #include "KSP_Settings.h"
 #include "KSP_NumericQuad.h"
 
-KSP_NumericQuad rackModule(Wire);
+KSP_NumericQuad myKRModule(Wire);
 
 void setup() {
   // put your setup code here, to run once:
@@ -13,13 +13,17 @@ void setup() {
   // Let devices power up...
   delay(1000);
 
-  // Start the Module
-  rackModule.begin();
+  // Start the KR Module
+  myKRModule.begin(messageHandler);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
-  // Run the Module
-  rackModule.loop();
+  // Run the KR Module
+  myKRModule.loop();
+}
+
+void messageHandler(byte messageType, byte msg[], byte msgSize) {
+  myKRModule.messageHandler(messageType, msg, msgSize);
 }

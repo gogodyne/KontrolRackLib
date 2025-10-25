@@ -48,6 +48,7 @@ public:
     int8_t cs = -1;
     int8_t clk = -1;
     float intensity = 1.f;
+
     Info() {}
     Info(int8_t din, int8_t cs, int8_t clk, float intensity)
     : din(din)
@@ -57,45 +58,41 @@ public:
     {}
   };
 
-  int din;
-  int cs;
-  int clk;
+  Info info;
   uint8_t buffer[MAX7219_DeviceMax][MAX7219_DigitCount];
   uint8_t intensities[MAX7219_DeviceMax];
 
-  void begin(int din, int cs, int clk, float intensity)
+  void begin(Info infoIn)
   {
-    this->din = din;
-    this->cs = cs;
-    this->clk = clk;
+    info = infoIn;
 
-    pinMode(din, OUTPUT);
-    pinMode(cs, OUTPUT);
-    pinMode(clk, OUTPUT);
-    digitalWrite(clk, HIGH);
+    reset();
+  }
+
+  void reset()
+  {
+    pinMode(info.din, OUTPUT);
+    pinMode(info.cs, OUTPUT);
+    pinMode(info.clk, OUTPUT);
+    digitalWrite(info.clk, HIGH);
     delay(200);
 
     setDisplayTestMode(MAX7219_DisplayTestMode_Normal);
     setShutdownMode(MAX7219_ShutdownMode_Normal);
     setScanLimit(0x07);
-    setIntensity(intensity);
+    setIntensity(info.intensity);
     setDecodeMode(MAX7219_DecodeMode_CodeBAll);
-  }
-
-  void begin (Info info)
-  {
-    begin(info.din, info.cs, info.clk, info.intensity);
   }
 
   ////////////////////////////////////////////////////////////////////////////////
 
-  inline void open()    { digitalWrite(cs, LOW); }
-  inline void close()   { digitalWrite(cs, HIGH); }
+  inline void open()    { digitalWrite(info.cs, LOW); }
+  inline void close()   { digitalWrite(info.cs, HIGH); }
 
   void send(uint8_t reg, byte data)
   {
-    shiftOut(din, clk, MSBFIRST, reg);
-    shiftOut(din, clk, MSBFIRST, data);
+    shiftOut(info.din, info.clk, MSBFIRST, reg);
+    shiftOut(info.din, info.clk, MSBFIRST, data);
   }
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -250,7 +247,7 @@ public:
           }
           else
           // numeral
-          if (c == '.' || c == ',')
+          if (c == '.' || c == ',' || c == ':')
           {
             if (buffer[bank][col] & CodeB_DP)
             {

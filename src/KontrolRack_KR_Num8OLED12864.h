@@ -24,10 +24,11 @@ class Num8OLED12864 : public ModuleI2C
 public:
   using Parent = ModuleI2C;
 
-  Num8 num8;
   OLED12864 oled12864;
-  Bank::Device num8Device;
   Bank::Device* _oled12864Devices = nullptr;
+  bool* _oled12864Inverted = nullptr;
+  Num8 num8;
+  Bank::Device num8Device;
 
   Num8OLED12864(TwoWire& inWire)
   : Parent(inWire)
@@ -39,11 +40,11 @@ public:
   {
     Parent::begin(fps, test, switchAddress, encInfo);
 
-    // init I2C devices
+    // Init I2C devices.
     for (int i = 0; i < getBankSize(); ++i)
     {
       openBankPorts(i);
-      // init OLED
+      // Init OLED.
       {
         oled12864.begin(oledAddress);
         if (test)
@@ -54,7 +55,7 @@ public:
       }
     }
 
-    // init Numeric
+    // Init Numeric.
     {
       num8.begin(num8Info);
       num8.clear();
@@ -79,13 +80,27 @@ public:
   virtual void drawBanks(bool isDirty) override
   {
     // Numeric is not I2C; clear/render once
-    if (num8Device.timing.isTick)
+    if (isDirty || num8Device.timing.isTick)
       num8.clear();
 
     Parent::drawBanks(isDirty);
 
-    if (num8Device.timing.isTick)
+    if (isDirty || num8Device.timing.isTick)
       num8.render();
+  }
+
+  virtual void drawBankInverted(uint8_t bankIndex, bool invert)
+  {
+    if (_oled12864Inverted)
+    {
+      // Only if changing.
+      if (_oled12864Inverted[bankIndex] != invert)
+      {
+        _oled12864Inverted[bankIndex] = invert;
+
+        oled12864.gfx.invertDisplay(_oled12864Inverted[bankIndex]);
+      }
+    }
   }
 
   virtual void drawOledHighlight(uint8_t index)
@@ -131,13 +146,17 @@ class Numeric8 : public Num8OLED12864
 {
 public:
   Bank banks[(uint8_t)BANKCOUNT];
+
   Bank::Device oled12864Devices[(uint8_t)BANKCOUNT];
+  bool oled12864Inverted[(uint8_t)BANKCOUNT];
 
   Numeric8(TwoWire& inWire)
   : Num8OLED12864(inWire)
   {
     _banks = banks;
+
     _oled12864Devices = oled12864Devices;
+    _oled12864Inverted = oled12864Inverted;
   }
 
   virtual uint8_t getBankSize() const override { return (uint8_t)BANKCOUNT; }

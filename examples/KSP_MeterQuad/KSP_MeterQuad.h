@@ -2,6 +2,8 @@
 #ifndef KSP_MeterQuad_h
 #define KSP_MeterQuad_h
 
+#include <KerbalSimpit.h>
+KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_LED24OLED12864.h>
 
@@ -13,186 +15,450 @@ class KSP_MeterQuad : public KR::Meter24Quad
 public:
   using Parent = KR::Meter24Quad;
 
-  enum BankMode
+  enum BankScene
   {
-    Off,
-    Index,
-    Time,
-    Level,
+    Vessel,
+    Stage,
+    XenonGasVessel,
+    XenonGasStage,
+    MAX
   };
 
-  // Data for display
-  struct BankData
+  // Data for display.
+  struct DisplayData
   {
-    uint8_t level = 0;
+    const char* label = nullptr;
+    const resourceMessage* resourceMsg = nullptr;
+    float level = 0;
+    uint8_t meterValue = 0;
+    uint8_t percent = 0;
+    float total = 0;
+    float available = 0;
+    bool isStage = false;
+
+    DisplayData() {}
+    DisplayData(const char* label, const resourceMessage& message, bool isStage)
+    : label(label)
+    , resourceMsg(&message)
+    , isStage(isStage)
+    {
+      if (resourceMsg)
+      {
+        if (resourceMsg->total)
+        {
+          total = resourceMsg->total;
+          available = resourceMsg->available;
+          level = available / total;
+          percent = level * 100;
+          meterValue = level * ((float)LED24::getSize() - 1);
+        }
+      }
+    }
   };
-  BankData bankDatas[(uint8_t)KR::BankSize::Quad];
+
+  // KSP Messages.
+  void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
+  resourceMessage liquidFuelMsg;
+  resourceMessage liquidFuelStageMsg;
+  resourceMessage oxidizerMsg;
+  resourceMessage oxidizerStageMsg;
+  resourceMessage solidFuelMsg;
+  resourceMessage solidFuelStageMsg;
+  resourceMessage xenonGasMsg;
+  resourceMessage xenonGasStageMsg;
+  resourceMessage monopropellantMsg;
+  resourceMessage evaMonopropellantMsg;
+
+  flightStatusMessage flightStatusMsg;
+
+  // Connection.
+  int connectionState = 0;
+  unsigned long pingMs = 0;
+
+  // Bank.
+  int bankScene = BankScene::Vessel;
+  enum BankMode
+  {
+    Lf,
+    Ox,
+    Sf,
+    Xe,
+    Mp,
+    Ev,
+    SIZE
+  };
+  const char* bankLabels[BankMode::SIZE] =
+  {
+    "Lf",
+    "Ox",
+    "Sf",
+    "Xe",
+    "Mp",
+    "Ev"
+  };
 
   KSP_MeterQuad(TwoWire& inWire)
   : Parent(inWire)
   {}
 
   using Parent::begin;
-  virtual void begin()
+  virtual void begin(void (*messageHandler)(byte messageType, byte msg[], byte msgSize))
   {
+    mySimpitHandler = messageHandler;
+
     for (int i = 0; i < getBankSize(); ++i)
     {
-      banks[i].mode = BankMode::Level;
-
       // Start the devices.
       led24Devices[i].begin(12);
       oled12864Devices[i].begin(12);
     }
+    banks[0].mode = BankMode::Lf;
+    banks[1].mode = BankMode::Ox;
+    banks[2].mode = BankMode::Sf;
+    banks[3].mode = BankMode::Mp;
 
-    Parent::begin(12, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24_ADDRESS, EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    Parent::begin(12, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24::Info(LED24_ADDRESS, &wire, LED24_Brightness), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
   }
 
   virtual void loop() override
   {
     Parent::loop();
 
-    // Input...
+    if (btnDidPress())
     {
-      // Encoder click
-      if (encBtn.btn.didPress)
+      ESP.restart();
+    }
+    if (encDidIncrease())
+    {
+      bankScene = min(bankScene + 1, BankScene::MAX - 1);
+    }
+    if (encDidDecrease())
+    {
+      bankScene = max(bankScene - 1, 0);
+    }
+
+    tryConnect();
+    mySimpit.update();
+  }
+
+  //------------------------------------------------------------------------------
+  // Connection
+
+  virtual int tryConnect()
+  {
+    unsigned long ms = millis();
+
+    // Ping.
+    if (ms >= pingMs)
+    {
+      pingMs = ms + 3000;
+      mySimpit.send(ECHO_REQ_MESSAGE, "PING\n", 6);
+    }
+
+    // Connect.
+    static unsigned long tryConnectMs = 0;
+    if ((connectionState == 0) && (ms >= tryConnectMs))
+    {
+      tryConnectMs = ms + 3000;
+      connectionState = mySimpit.init();
+      if (connectionState)
       {
-        // set mode
-        cycleBankSelectMode();
-        setEncRange();
+        onConnect();
       }
+    }
 
-      // Encoder changed
-      if (encBtn.encDelta)
+    return connectionState;
+  }
+
+  virtual void onConnect()
+  {
+    connectionState += mySimpit.connectedToKSP2();
+
+    mySimpit.inboundHandler(mySimpitHandler);
+
+    // | Propulsion Resources |
+    mySimpit.registerChannel(LF_MESSAGE);
+    mySimpit.registerChannel(LF_STAGE_MESSAGE);
+    mySimpit.registerChannel(OX_MESSAGE);
+    mySimpit.registerChannel(OX_STAGE_MESSAGE);
+    mySimpit.registerChannel(SF_MESSAGE);
+    mySimpit.registerChannel(SF_STAGE_MESSAGE);
+    mySimpit.registerChannel(XENON_GAS_MESSAGE);
+    mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
+    mySimpit.registerChannel(MONO_MESSAGE);
+    mySimpit.registerChannel(EVA_MESSAGE);
+
+    mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
+  }
+
+  virtual void messageHandler(byte messageType, byte msg[], byte msgSize)
+  {
+    switch (messageType)
+    {
+    case ECHO_RESP_MESSAGE:
       {
-        // change to select/edit?
-        if (bankSelectMode == KR::BankSelectMode::Normal)
+        connectionState = 1;
+        onConnect();
+      }
+      break;
+
+    case LF_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
         {
-          // set mode
-          setBankSelectMode(KR::BankSelectMode::Select);
-          setEncRange();
-        }
-        else
-        {
-          if (bankSelectMode == KR::BankSelectMode::Select)
-          {
-            setBankSelected(encBtn.enc.slider.position);
-          }
-          else
-          if (bankSelectMode == KR::BankSelectMode::Edit)
-          {
-            setBankLevel(encBtn.enc.slider.position);
-          }
+          liquidFuelMsg = parseMessage<resourceMessage>(msg);
         }
       }
+      break;
+
+    case LF_STAGE_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          liquidFuelStageMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case OX_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          oxidizerMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case OX_STAGE_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          oxidizerStageMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case SF_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          solidFuelMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case SF_STAGE_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          solidFuelStageMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case XENON_GAS_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          xenonGasMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case XENON_GAS_STAGE_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          xenonGasStageMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case MONO_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          monopropellantMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case EVA_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          evaMonopropellantMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case FLIGHT_STATUS_MESSAGE:
+      {
+        if (msgSize == sizeof(flightStatusMessage))
+        {
+          flightStatusMsg = parseMessage<flightStatusMessage>(msg);
+        }
+      }
+      break;
     }
   }
 
-  virtual void setEncRange()
+  virtual DisplayData makeDisplayData(uint8_t bankIndex)
   {
-    if (bankSelectMode == KR::BankSelectMode::Select)
+    if (bankIndex == 0)
     {
-      encBtn.enc.slider.set(0, getBankSize() - 1, false, bankSelected);
+      if (!flightStatusMsg.isInEVA())
+      {
+        if (bankScene == BankScene::Stage || bankScene == BankScene::XenonGasStage)
+          return DisplayData(bankLabels[BankMode::Lf], liquidFuelStageMsg, true);
+        return DisplayData(bankLabels[BankMode::Lf], liquidFuelMsg, false);
+      }
     }
-    else
-    if (bankSelectMode == KR::BankSelectMode::Edit)
+
+    if (bankIndex == 1)
     {
-      encBtn.enc.slider.set(0, led24.getSize() - 1, false, bankDatas[bankSelected].level);
+      if (!flightStatusMsg.isInEVA())
+      {
+        if (bankScene == BankScene::Stage || bankScene == BankScene::XenonGasStage)
+          return DisplayData(bankLabels[BankMode::Ox], oxidizerStageMsg, true);
+        return DisplayData(bankLabels[BankMode::Ox], oxidizerMsg, false);
+      }
     }
-  }
 
-  virtual uint8_t setBankLevel(int8_t level)
-  {
-    resetHighlightTimeout();
-    resetBankSelectModeTimeout();
+    if (bankIndex == 2)
+    {
+      if (!flightStatusMsg.isInEVA())
+      {
+        if (bankScene == BankScene::Stage)
+          return DisplayData(bankLabels[BankMode::Sf], solidFuelStageMsg, true);
+        if (bankScene == BankScene::Vessel)
+          return DisplayData(bankLabels[BankMode::Sf], solidFuelMsg, false);
+        if (bankScene == BankScene::XenonGasStage)
+          return DisplayData(bankLabels[BankMode::Xe], xenonGasStageMsg, true);
+        if (bankScene == BankScene::XenonGasVessel)
+          return DisplayData(bankLabels[BankMode::Xe], xenonGasMsg, false);
+      }
+    }
 
-    bankDatas[bankSelected].level = constrain(level, 0, led24.getSize() - 1);
+    if (bankIndex == 3)
+    {
+      if (!flightStatusMsg.isInEVA())
+      {
+        return DisplayData(bankLabels[BankMode::Mp], monopropellantMsg, false);
+      }
+      return DisplayData(bankLabels[BankMode::Ev], evaMonopropellantMsg, false);
+    }
 
-    return bankDatas[bankSelected].level;
-  }
-
-  virtual uint8_t cycleBankLevel(int8_t delta)
-  {
-    setBankLevel(bankDatas[bankSelected].level + delta);
-
-    return bankDatas[bankSelected].level;
+    return DisplayData();
   }
 
   //------------------------------------------------------------------------------
   // Drawing
 
-  virtual void drawBank(uint8_t index, bool isDirty) override
+  virtual bool isDrawBankTick(uint8_t bankIndex) override
   {
-    Parent::drawBank(index, isDirty);
+    return oled12864Devices[bankIndex].timing.isTick || led24Devices[bankIndex].timing.isTick;
+  }
 
-    uint8_t bankLevel = bankDatas[index].level;
+  virtual void drawBank(uint8_t bankIndex, bool isDirty) override
+  {
+    Parent::drawBank(bankIndex, isDirty);
+
+    const int LABELSIZE = 4;
+    const int LABELSIZE_SM = 2;
+    DisplayData displayData = makeDisplayData(bankIndex);
 
     // OLED
-    if (isDirty || oled12864Devices[index].timing.isTick)
+    if (isDirty || oled12864Devices[bankIndex].timing.isTick)
     {
       oled12864.clear();
-      drawOledHighlight(index);
-
-      switch (banks[index].mode)
+      drawBankInverted(bankIndex, oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
       {
-      case BankMode::Index:
+        if (displayData.label)
         {
-          oled12864.gfx.setTextSize(2);
-          oled12864.gfx.printf("#%d\n", index);
+          int16_t x1, y1;
+          uint16_t w, h;
+
+          // Label size.
+          oled12864.gfx.setTextSize(LABELSIZE);
+          oled12864.gfx.getTextBounds(displayData.label, 0, 0, &x1, &y1, &w, &h);
+
+          // Label frame.
+          uint16_t labelHeight = LABELSIZE + h + LABELSIZE;
+          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, LABELSIZE + LABELSIZE, WHITE);
+
+          // Label.
+          oled12864.gfx.setTextSize(LABELSIZE);
+          oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, LABELSIZE);
+          oled12864.gfx.print(displayData.label);
+
+          // Indicators.
+          oled12864.gfx.setTextSize(LABELSIZE_SM);
+          oled12864.gfx.setCursor(LABELSIZE, LABELSIZE);
+          {
+            // Bank Scene.
+            oled12864.gfx.printf("%d", bankScene);
+            // Connection status.
+            if (connectionState < 1)
+            {
+              oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+            }
+            oled12864.gfx.println();
+            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + LABELSIZE, oled12864.gfx.getCursorY());
+            // Stage.
+            if (displayData.isStage)
+            {
+              oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? "STG" : "---");
+            }
+          }
+
+          // Available/Total.
+          char text[32];
+          text[0] = 0;
+          oled12864.gfx.setTextSize(LABELSIZE_SM);
+          oled12864.gfx.setCursor(LABELSIZE, labelHeight + LABELSIZE);
+          if (timing.isHz(1.f/3.f))
+          {
+            oled12864.gfx.print("+");
+            sprintf(text, "%.1f", displayData.available);
+          }
+          else
+          {
+            oled12864.gfx.print("/");
+            sprintf(text, "%.1f", displayData.total);
+          }
+          oled12864.gfx.setTextSize(LABELSIZE_SM);
+          oled12864.gfx.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.setCursor(oled12864.gfx.width() - w - LABELSIZE, labelHeight + LABELSIZE);
+          oled12864.gfx.print(text);
         }
-        break;
-
-      case BankMode::Time:
-        {
-          oled12864.gfx.printf("\n%d", (int)timing.ms);
-        }
-        break;
-
-      case BankMode::Level:
-        {
-          oled12864.gfx.setTextSize(6);
-          oled12864.gfx.printf("%02d", bankLevel);
-          oled12864.gfx.setTextSize(2);
-          oled12864.gfx.printf("#%d\n", index);
-
-          oled12864.gfx.setTextSize(6);
-          oled12864.gfx.print("  ");
-          oled12864.gfx.setTextSize(2);
-          oled12864.gfx.printf("%3d%%\n", (uint8_t)(((float)bankLevel / ((float)led24.getSize() - 1)) * 100));
-
-          oled12864.gfx.setTextSize(6);
-          oled12864.gfx.print("  ");
-          oled12864.gfx.setTextSize(2);
-          oled12864.gfx.printf("%03.1f", timing.fpsEstimate);
-
-          oled12864.gfx.printf("\n%d", (int)timing.ms);
-        }
-        break;
       }
-
       oled12864.render();
     }
 
     // LED24
-    if (isDirty || led24Devices[index].timing.isTick)
+    if (isDirty || led24Devices[bankIndex].timing.isTick)
     {
       led24.clear();
-      drawLedHighlight(index);
-
+      drawLedHighlight(bankIndex);
       {
-        if (bankLevel > 0)
+        if (displayData.resourceMsg)
         {
-          led24.setBar(bankLevel - 1, LED_GREEN);
-        }
-        if (bankLevel < led24.getSize())
-        {
-          led24.setBar(bankLevel, LED_YELLOW);
-        }
-        if (bankLevel < led24.getSize() - 1)
-        {
-          led24.setBar(bankLevel + 1, LED_RED);
+          for (uint8_t led = 0; led < LED24::getSize(); ++led)
+          {
+            if (led > displayData.meterValue + 1)
+              led24.setBar(led, LED_RED);
+            if (led == displayData.meterValue + 1)
+              led24.setBar(led, LED_OFF);
+            if (led == displayData.meterValue)
+              led24.setBar(led, LED_YELLOW);
+            if (led == displayData.meterValue - 1)
+              led24.setBar(led, LED_OFF);
+            if (led < displayData.meterValue - 1)
+              led24.setBar(led, LED_GREEN);
+          }
         }
       }
-
       led24.render();
     }
   }

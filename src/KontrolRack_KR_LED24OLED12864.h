@@ -24,9 +24,11 @@ public:
   using Parent = ModuleI2C;
 
   OLED12864 oled12864;
+  Bank::Device* _oled12864Devices = nullptr;
+  bool* _oled12864Inverted = nullptr;
+
   LED24 led24;
   Bank::Device* _led24Devices = nullptr;
-  Bank::Device* _oled12864Devices = nullptr;
 
   LED24OLED12864(TwoWire& inWire)
   : Parent(inWire)
@@ -34,15 +36,15 @@ public:
   {}
 
   using Parent::begin;
-  virtual void begin(fps_t fps, bool test, uint8_t switchAddress, uint8_t oledAddress, uint8_t led24Address, EncBtn::Info encInfo)
+  virtual void begin(fps_t fps, bool test, uint8_t switchAddress, uint8_t oledAddress, LED24::Info led24Info, EncBtn::Info encInfo)
   {
     Parent::begin(fps, test, switchAddress, encInfo);
 
-    // init I2C devices
+    // Init I2C devices.
     for (int i = 0; i < getBankSize(); ++i)
     {
       openBankPorts(i);
-      // init OLED
+      // Init OLED.
       {
         oled12864.begin(oledAddress);
         if (test)
@@ -51,9 +53,9 @@ public:
           oled12864.render();
         }
       }
-      // init LED
+      // Init LED.
       {
-        led24.begin(led24Address, wire);
+        led24.begin(led24Info);
         led24.flip = true;
         if (test)
         {
@@ -70,6 +72,20 @@ public:
     {
       if (_led24Devices) _led24Devices[i].loop();
       if (_oled12864Devices) _oled12864Devices[i].loop();
+    }
+  }
+
+  virtual void drawBankInverted(uint8_t bankIndex, bool invert)
+  {
+    if (_oled12864Inverted)
+    {
+      // Only if changing.
+      if (_oled12864Inverted[bankIndex] != invert)
+      {
+        _oled12864Inverted[bankIndex] = invert;
+
+        oled12864.gfx.invertDisplay(_oled12864Inverted[bankIndex]);
+      }
     }
   }
 
@@ -116,15 +132,21 @@ class Meter24 : public LED24OLED12864
 {
 public:
   Bank banks[(uint8_t)BANKCOUNT];
-  Bank::Device led24Devices[(uint8_t)BANKCOUNT];
+
   Bank::Device oled12864Devices[(uint8_t)BANKCOUNT];
+  bool oled12864Inverted[(uint8_t)BANKCOUNT];
+
+  Bank::Device led24Devices[(uint8_t)BANKCOUNT];
 
   Meter24(TwoWire& inWire)
   : LED24OLED12864(inWire)
   {
     _banks = banks;
-    _led24Devices = led24Devices;
+
     _oled12864Devices = oled12864Devices;
+    _oled12864Inverted = oled12864Inverted;
+
+    _led24Devices = led24Devices;
   }
 
   virtual uint8_t getBankSize() const override { return (uint8_t)BANKCOUNT; }

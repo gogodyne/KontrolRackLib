@@ -86,9 +86,18 @@ public:
   // I2C
   TwoWire& wire;
   I2cSwitch i2cSwitch;
+
   // Encoder/button
   EncBtn encBtn;
   bool useEncBtn = false;
+  virtual bool btnIsPress() { return encBtn.btn.isPress; }
+  virtual bool btnWasPress() { return encBtn.btn.wasPress; }
+  virtual bool btnDidPress() { return encBtn.btn.didPress; }
+  virtual bool btnDidRelease() { return encBtn.btn.didRelease; }
+  virtual bool btnDidChange() { return encBtn.btn.didChange; }
+  virtual bool encDidIncrease() { return encBtn.encDelta > 0; }
+  virtual bool encDidDecrease() { return encBtn.encDelta < 0; }
+  virtual bool encDidChange() { return encDidIncrease() || encDidDecrease(); }
 
   // Banks
   Bank* _banks = nullptr;
@@ -152,22 +161,32 @@ public:
     }
   }
 
+  // Draw the Module.
   virtual void draw()
   {
   }
 
-  virtual void drawBanks(bool isDirty)
+  // Override to draw each device of a Bank.
+  virtual void drawBank(uint8_t bankIndex, bool isDirty)
   {
-    for (int i = 0; i < getBankSize(); ++i)
-    {
-      drawBank(i, isDirty);
-    }
   }
 
-  // Draw a bank.
-  virtual void drawBank(uint8_t index, bool isDirty)
+  // Override to flag drawing for devices.
+  virtual bool isDrawBankTick(uint8_t bankIndex)
   {
-    openBankPorts(index);
+    return false;
+  }
+
+  virtual void drawBanks(bool isDirty)
+  {
+    for (int bankIndex = 0; bankIndex < getBankSize(); ++bankIndex)
+    {
+      if (isDrawBankTick(bankIndex))
+      {
+        openBankPorts(bankIndex);
+        drawBank(bankIndex, isDirty);
+      }
+    }
   }
 
   // Extend the highlight emphasis.
@@ -177,11 +196,11 @@ public:
   }
 
   // Select a bank.
-  virtual int8_t setBankSelected(int8_t index)
+  virtual int8_t setBankSelected(int8_t bankIndex)
   {
     resetHighlightTimeout();
     resetBankSelectModeTimeout();
-    bankSelected = constrain(index, 0, getBankSize() - 1);
+    bankSelected = constrain(bankIndex, 0, getBankSize() - 1);
 
     return bankSelected;
   }
@@ -228,10 +247,10 @@ public:
 
   // Open the Switch ports for a bank [0-3].
   // (0-3) also opens (4-7); up to 4 banks of 2 devices each, on 8-channel MUX.
-  virtual void openBankPorts(uint8_t index)
+  virtual void openBankPorts(uint8_t bankIndex)
   {
-    index = index & 0b11;
-    uint8_t portBits = (bit(index) << 4) | bit(index);
+    bankIndex = bankIndex & 0b11;
+    uint8_t portBits = (bit(bankIndex) << 4) | bit(bankIndex);
     i2cSwitch.setPortBits(portBits);
   }
 };

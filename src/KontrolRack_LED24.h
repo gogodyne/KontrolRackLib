@@ -14,22 +14,36 @@ namespace KontrolRack {
 class LED24
 {
 public:
+  ////////////////////////////////////////////////////////////////////////////////
+  struct Info
+  {
+    uint8_t i2cAddress = 0;
+    TwoWire* wire = nullptr;
+    uint8_t brightness = 15;// [0-15]
+
+    Info() {}
+    Info(uint8_t i2cAddress, TwoWire* wire, uint8_t brightness)
+    : i2cAddress(i2cAddress)
+    , wire(wire)
+    , brightness(brightness)
+    {}
+  };
+
+  Info info;
   Adafruit_24bargraph driver = Adafruit_24bargraph();
   bool useBlink = false;
   bool flip = false;
 
-  virtual void begin(uint8_t i2cAddress = AdafruitBargraph_Address, TwoWire& inWire = Wire)
+  virtual void begin(Info infoIn)
   {
-    driver.begin(i2cAddress, &inWire);
+    info = infoIn;
+
+    driver.begin(info.i2cAddress, info.wire);
+    // [0-15]
+    driver.setBrightness(info.brightness);
   }
 
   static uint8_t getSize() { return 24; }
-
-  // [0-15]
-  virtual void setBrightness(uint8_t brightness)
-  {
-      driver.setBrightness(brightness);
-  }
 
   virtual void setBar(uint8_t bar, uint8_t color)
   {
