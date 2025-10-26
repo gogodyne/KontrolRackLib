@@ -56,7 +56,7 @@ public:
     return (digitalRead(pin) == LOW);// active LOW
   }
 
-  void loop()
+  virtual void loop()
   {
     setPressState(pinState);
   }
@@ -71,34 +71,39 @@ public:
   int position;
   bool isWrap : 1;
 
-  void set( int minPosition, int maxPosition, bool isWrap, int position )
+  virtual void set( int minPosition, int maxPosition, bool isWrap, int position )
   {
     this->minPosition = min( minPosition, maxPosition );
     this->maxPosition = max( minPosition, maxPosition );
     this->isWrap = isWrap;
     set( position );
   }
-  int set( int position )
+
+  virtual int set( int position )
   {
     return this->position = constrain( position, min( minPosition, maxPosition ), max( minPosition, maxPosition ) );
   }
-  int change( bool inc )
+
+  virtual int change( bool inc )
   {
     return inc ? increment() : decrement();
   }
-  int increment()
+
+  virtual int increment()
   {
     if ( isWrap && position == maxPosition )
       return position = minPosition;
     return set( position + 1 );
   }
-  int decrement()
+
+  virtual int decrement()
   {
     if ( isWrap && position == minPosition )
       return position = maxPosition;
     return set(position - 1);
   }
-  float getLevel()
+
+  virtual float getLevel()
   {
     return (float)(position - minPosition) / (float)((maxPosition + 1) - minPosition);
   }
@@ -146,16 +151,9 @@ public:
   int lastPosition = 0;
   uint16_t positionCount = 20;
 
-  // Expander
-  uint8_t address = 0;
-  TwoWire* wire = nullptr;
   // Pins
   uint8_t pinA = 0;// or Exp interrupt
   uint8_t pinB = 0;
-
-  enum class PinSource { None, Pins, Expander };
-
-  PinSource pinSource = PinSource::None;
 
   virtual void begin(uint16_t positionCount)
   {
@@ -177,41 +175,7 @@ public:
 
   void IRAM_ATTR isrPins()
   {
-    // pinSource = PinSource::Pins;
-    readPins();
-  }
-
-  virtual int8_t readPins()
-  {
-    pinState = (digitalRead(pinB) << 1) | digitalRead(pinA);
-
-    return read();
-  }
-
-  virtual void begin(uint16_t positionCount, uint8_t address, TwoWire* wire, uint8_t interruptPin)
-  {
-    begin(positionCount);
-
-    this->address = address;
-    this->wire = wire;
-
-    this->pinA = interruptPin;
-    pinMode(pinA, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(pinA), std::bind(&RotaryEncoder::isrExpander, this), FALLING);
-  }
-
-  void IRAM_ATTR isrExpander()
-  {
-    pinSource = PinSource::Expander;
-    // readExpander();
-  }
-
-  virtual int8_t readExpander()
-  {
-    wire->requestFrom(address, (uint8_t)1);
-    pinState = wire->read() & 0x00000011;
-
-    return read();
+    read();
   }
 
   virtual int8_t read()
@@ -224,22 +188,9 @@ public:
   }
 
   virtual void loop()
-  {
-    switch (pinSource)
-    {
-    case PinSource::None:
-      break;
-    case PinSource::Pins:
-      readPins();
-      break;
-    case PinSource::Expander:
-      readExpander();
-      break;
-    }
-    pinSource = PinSource::None;
-  }
+  {}
 
-  int popChange()
+  virtual int popChange()
   {
     int last = lastPosition;
     lastPosition = position;
@@ -247,7 +198,7 @@ public:
     return position - last;
   }
 
-  float getRevolution()
+  virtual float getRevolution()
   {
     return (float)(position % positionCount) / (float)(positionCount);
   }
