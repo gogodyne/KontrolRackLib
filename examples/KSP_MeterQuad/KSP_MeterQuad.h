@@ -124,15 +124,15 @@ public:
   {
     Parent::loop();
 
-    if (btnDidPress())
+    if (encBtn.didPress())
     {
       ESP.restart();
     }
-    if (encDidIncrease())
+    if (encBtn.didIncrease())
     {
       bankScene = min(bankScene + 1, BankScene::MAX - 1);
     }
-    if (encDidDecrease())
+    if (encBtn.didDecrease())
     {
       bankScene = max(bankScene - 1, 0);
     }

@@ -306,24 +306,29 @@ public:
   EncSlider enc;
   ButtonState btn;
 
-  void begin(uint16_t positionCount, int8_t pinA, int8_t pinB, int8_t pinS)
+  virtual void begin(Info info)
   {
-    enc.begin(positionCount, pinA, pinB);
-    btn.begin(pinS);
+    enc.begin(info.positionCount, info.pinA, info.pinB);
+    btn.begin(info.pinS);
   }
 
-  void begin(Info info)
-  {
-    begin(info.positionCount, info.pinA, info.pinB, info.pinS);
-  }
-
-  void loop()
+  virtual void loop()
   {
     enc.loop();
     btn.loop();
 
     encDelta = enc.popChange();
   }
+
+  virtual bool isPress() { return btn.isPress; }
+  virtual bool wasPress() { return btn.wasPress; }
+  virtual bool didPress() { return btn.didPress; }
+  virtual bool didRelease() { return btn.didRelease; }
+  virtual bool didChangeBtn() { return btn.didChange; }
+  virtual bool didIncrease() { return encDelta > 0; }
+  virtual bool didDecrease() { return encDelta < 0; }
+  virtual bool didChangeEnc() { return didIncrease() || didDecrease(); }
+  virtual bool didChange() { return didChangeBtn() || didChangeEnc(); }
 };
 
 }// namespace KontrolRack

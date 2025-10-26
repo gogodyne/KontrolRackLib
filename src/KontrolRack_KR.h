@@ -90,14 +90,6 @@ public:
   // Encoder/button
   EncBtn encBtn;
   bool useEncBtn = false;
-  virtual bool btnIsPress() { return encBtn.btn.isPress; }
-  virtual bool btnWasPress() { return encBtn.btn.wasPress; }
-  virtual bool btnDidPress() { return encBtn.btn.didPress; }
-  virtual bool btnDidRelease() { return encBtn.btn.didRelease; }
-  virtual bool btnDidChange() { return encBtn.btn.didChange; }
-  virtual bool encDidIncrease() { return encBtn.encDelta > 0; }
-  virtual bool encDidDecrease() { return encBtn.encDelta < 0; }
-  virtual bool encDidChange() { return encDidIncrease() || encDidDecrease(); }
 
   // Banks
   Bank* _banks = nullptr;
@@ -143,7 +135,7 @@ public:
       encBtn.loop();
     }
 
-    bool isDirty = (encBtn.btn.didChange || encBtn.encDelta);
+    bool isDirty = encBtn.didChange();
 
     // Draw the Module.
     if (timing.isTick || isDirty)
