@@ -3,7 +3,7 @@
 #define KontrolRack_Input_h
 
 #include <Arduino.h>
-#include <FunctionalInterrupt.h>
+#include <FunctionalInterrupt.h>// Allows for passing a lambda to an interrupt
 #include <Wire.h>
 
 namespace KontrolRack {
@@ -43,12 +43,14 @@ public:
     this->pin = pin;
 
     pinMode(pin, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(pin), std::bind(&ButtonState::isrPin, this), CHANGE);
+    attachInterrupt(digitalPinToInterrupt(pin), [this]() { read(); }, CHANGE);
   }
 
-  void IRAM_ATTR isrPin()
+  //----------------------------------------------------------------------------
+
+  virtual void loop()
   {
-    pinState = readPin();
+    setPressState(pinState);
   }
 
   virtual bool readPin()
@@ -56,9 +58,11 @@ public:
     return (digitalRead(pin) == LOW);// active LOW
   }
 
-  virtual void loop()
+  virtual bool read()
   {
-    setPressState(pinState);
+    pinState = readPin();
+
+    return pinState;
   }
 };
 
@@ -169,18 +173,18 @@ public:
 
     pinMode(pinA, INPUT_PULLUP);
     pinMode(pinB, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(pinA), std::bind(&RotaryEncoder::isrPins, this), CHANGE);
-    attachInterrupt(digitalPinToInterrupt(pinB), std::bind(&RotaryEncoder::isrPins, this), CHANGE);
+    attachInterrupt(digitalPinToInterrupt(pinA), [this]() { read(); }, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(pinB), [this]() { read(); }, CHANGE);
   }
 
-  void IRAM_ATTR isrPins()
-  {
-    read();
-  }
+  virtual void loop()
+  {}
+
+  //----------------------------------------------------------------------------
 
   virtual int8_t read()
   {
-    pinState = (digitalRead(pinB) << 1) | digitalRead(pinA);
+    pinState = readPins();
     state = ROTENC_states[state & 0xf][pinState];
     lastChange = ROTENC_GetStateDelta(state);
     position += lastChange;
@@ -188,8 +192,10 @@ public:
     return lastChange;
   }
 
-  virtual void loop()
-  {}
+  virtual int8_t readPins()
+  {
+    return (digitalRead(pinB) << 1) | digitalRead(pinA);
+  }
 
   virtual int popChange()
   {
@@ -271,6 +277,8 @@ public:
 
     encDelta = enc.popChange();
   }
+
+  //----------------------------------------------------------------------------
 
   virtual bool isPress() { return btn.isPress; }
   virtual bool wasPress() { return btn.wasPress; }
