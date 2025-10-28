@@ -180,6 +180,7 @@ public:
 
   virtual int8_t read()
   {
+    pinState = (digitalRead(pinB) << 1) | digitalRead(pinA);
     state = ROTENC_states[state & 0xf][pinState];
     lastChange = ROTENC_GetStateDelta(state);
     position += lastChange;

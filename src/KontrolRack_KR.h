@@ -143,8 +143,11 @@ public:
       draw();
     }
 
-    // Always draw all banks.
-    drawBanks(isDirty);
+    // Draw all Banks.
+    if (i2cSwitch.isConnected())
+    {
+      drawBanks(isDirty);
+    }
 
     // Automatic mode timeout.
     if (bankSelectModeTimeout < timing.ms)

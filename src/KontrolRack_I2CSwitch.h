@@ -25,37 +25,47 @@ public:
   // Open one port only.
   virtual void setPort(uint8_t portNumber)
   {
+    if (isConnected())
     driver.setPort(portNumber);
   }
 
   // Set all ports.
   virtual void setPortBits(uint8_t portBits)
   {
+    if (isConnected())
     driver.setPortState(portBits);
   }
 
   // Get bit position of the first enabled port.
   virtual uint8_t getPort()
   {
+    if (isConnected())
     return driver.getPort();
+    return 0;
   }
 
   // Get all port states.
   virtual uint8_t getPortState()
   {
+    if (isConnected())
     return driver.getPortState();
+    return 0;
   }
 
   // Enable individual port.
   virtual bool enablePort(uint8_t portNumber)
   {
+    if (isConnected())
     return driver.enablePort(portNumber);
+    return false;
   }
 
   // Disable individual port.
   virtual bool disablePort(uint8_t portNumber)
   {
+    if (isConnected())
     return driver.disablePort(portNumber);
+    return false;
   }
 };
 
