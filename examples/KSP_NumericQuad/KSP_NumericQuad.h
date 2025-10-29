@@ -102,7 +102,7 @@ public:
     // Start the devices.
     num8Device.begin(12);
 
-    for (int i = 0; i < getBankSize(); ++i)
+    for (int i = 0; i < getBankCount(); ++i)
     {
       // Start the devices.
       oled12864Devices[i].begin(12);

@@ -104,8 +104,8 @@ public:
   , wire(inWire)
   {}
 
-  // This defines the size of the bank
-  virtual uint8_t getBankSize() const = 0;
+  // This returns the number of banks
+  virtual uint8_t getBankCount() const = 0;
 
   using Parent::begin;
   // to disable enc/btn: positionCount < 1
@@ -174,7 +174,7 @@ public:
 
   virtual void drawBanks(bool isDirty)
   {
-    for (int bankIndex = 0; bankIndex < getBankSize(); ++bankIndex)
+    for (int bankIndex = 0; bankIndex < getBankCount(); ++bankIndex)
     {
       if (isDrawBankTick(bankIndex))
       {
@@ -195,7 +195,7 @@ public:
   {
     resetHighlightTimeout();
     resetBankSelectModeTimeout();
-    bankSelected = constrain(bankIndex, 0, getBankSize() - 1);
+    bankSelected = constrain(bankIndex, 0, getBankCount() - 1);
 
     return bankSelected;
   }

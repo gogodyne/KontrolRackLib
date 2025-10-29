@@ -200,7 +200,7 @@ public:
   {
     mySimpitHandler = messageHandler;
 
-    for (int i = 0; i < getBankSize(); ++i)
+    for (int i = 0; i < getBankCount(); ++i)
     {
       // Start the devices.
       led24Devices[i].begin(12);

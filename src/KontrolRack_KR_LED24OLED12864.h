@@ -41,7 +41,7 @@ public:
     Parent::begin(fps, test, switchAddress, encInfo);
 
     // Init I2C devices.
-    for (int i = 0; i < getBankSize(); ++i)
+    for (int i = 0; i < getBankCount(); ++i)
     {
       openBankPorts(i);
       // Init OLED.
@@ -68,7 +68,7 @@ public:
 
   virtual void loopDevices() override
   {
-    for (int i = 0; i < getBankSize(); ++i)
+    for (int i = 0; i < getBankCount(); ++i)
     {
       if (_led24Devices) _led24Devices[i].loop();
       if (_oled12864Devices) _oled12864Devices[i].loop();
@@ -150,7 +150,7 @@ public:
     _led24Devices = led24Devices;
   }
 
-  virtual uint8_t getBankSize() const override { return (uint8_t)BANKCOUNT; }
+  virtual uint8_t getBankCount() const override { return (uint8_t)BANKCOUNT; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
