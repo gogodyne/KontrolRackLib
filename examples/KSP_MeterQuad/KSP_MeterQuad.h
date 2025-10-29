@@ -21,26 +21,67 @@ public:
   ESPWiFi net;
 
   // Bank
+  // Modes that a Bank can have
   enum class BankMode : uint8_t
   {
     OFF,
-    LF,
+    LF,// liquid fuel
     LF_STAGE,
-    OX,
+    OX,// oxidizer
     OX_STAGE,
-    SF,
+    SF,// solid fuel
     SF_STAGE,
-    XE,
+    XE,// xenon
     XE_STAGE,
-    MP,
-    EV,
+    MP,// monopropellant
+    EV,// EVA MP
+    AI,// intake air
+    HF,// hydrogen
+    HF_STAGE,
+    UF,// uranium
+    EL,// electric
+    OR,// ore
+    AB,// ablator
+    AB_STAGE,
+    // TR,// TACLS resource
+    // TW,// TACLS waste
+    // C1,// custom 1
+    // C2,// custom 2
     SIZE
+  };
+  // Bank modes for display
+  const char* bankModeNames[(int)BankMode::SIZE] =
+  {
+    "(off)",
+    "Liq Fuel",
+    "Liq Fuel (stage)",
+    "Oxidizer",
+    "Oxidizer (stage)",
+    "Solid Fuel",
+    "Solid Fuel (stage)",
+    "Xenon",
+    "Xenon (stage)",
+    "Monopropellant",
+    "EVA Monopropellant",
+    "Intake Air",
+    "Hydrogen",
+    "Hydrogen (stage)",
+    "Uranium",
+    "Electric",
+    "Ore",
+    "Ablator",
+    "Ablator (stage)",
+    // {"Food", "", "Water", "Oxygen"},
+    // {"Waste", "", "Liquid", "CO2"},
+    // {"Res1", "", "Res2", "Res3", "Res4"},
+    // {"Res5", "", "Res6", "Res7", "Res8"},
   };
   struct BankLabel
   {
     const char* label;
     const char* indicator;
   };
+  // Labels per mode
   const BankLabel bankLabels[(int)BankMode::SIZE] =
   {
     {"--", ""},
@@ -54,7 +95,20 @@ public:
     {"Xe", "STG"},
     {"Mp", ""},
     {"Ev", "EVA"},
+    {"Ai", ""},
+    {"Hf", ""},
+    {"Hf", "STG"},
+    {"Uf", ""},
+    {"El", ""},
+    {"Or", ""},
+    {"Ab", ""},
+    {"Ab", "STG"},
+    // {"Food", "", "Water", "Oxygen"},
+    // {"Waste", "", "Liquid", "CO2"},
+    // {"Res1", "", "Res2", "Res3", "Res4"},
+    // {"Res5", "", "Res6", "Res7", "Res8"},
   };
+  // A preset group of Bank modes; one mode per Bank
   struct BankScene
   {
     BankMode mode[bankCount];
@@ -104,6 +158,7 @@ public:
 
   // KSP Messages
   void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
+  // | Propulsion Resources |
   resourceMessage liquidFuelMsg;
   resourceMessage liquidFuelStageMsg;
   resourceMessage oxidizerMsg;
@@ -114,7 +169,22 @@ public:
   resourceMessage xenonGasStageMsg;
   resourceMessage monopropellantMsg;
   resourceMessage evaMonopropellantMsg;
+  // | Resources in KSP2 |
+  resourceMessage intakeAirMsg;
+  resourceMessage hydrogenMsg;
+  resourceMessage hydrogenStageMsg;
+  resourceMessage uraniumMsg;
+  // | Vessel Resources |
+  resourceMessage electricMsg;
+  resourceMessage oreMsg;
+  resourceMessage ablatorMsg;
+  resourceMessage ablatorStageMsg;
+  // TACLSRessourceMessage taclsResourceMsg;
+  // TACLSWasteMessage taclsWasteMsg;
+  // CustomResourceMessage customResource1Msg;
+  // CustomResourceMessage customResource2Msg;
 
+  // For tracking EVA
   flightStatusMessage flightStatusMsg;
 
   // Connection
@@ -156,7 +226,7 @@ public:
     }
     if (encBtn.didDecrease())
     {
-      bankSceneIndex = max(bankSceneIndex - 1, 0);// Skip EVA[0]
+      bankSceneIndex = max(bankSceneIndex - 1, 1);// Skip EVA[0]
     }
 
     tryConnect();
@@ -211,6 +281,20 @@ public:
     mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
     mySimpit.registerChannel(MONO_MESSAGE);
     mySimpit.registerChannel(EVA_MESSAGE);
+    // | KSP2 only Resources |
+    mySimpit.registerChannel(INTAKE_AIR_MESSAGE);
+    mySimpit.registerChannel(HYDROGEN_MESSAGE);
+    mySimpit.registerChannel(HYDROGEN_STAGE_MESSAGE);
+    mySimpit.registerChannel(URANIUM_MESSAGE);
+    // | Vessel Resources |
+    mySimpit.registerChannel(ELECTRIC_MESSAGE);
+    mySimpit.registerChannel(ORE_MESSAGE);
+    mySimpit.registerChannel(AB_MESSAGE);
+    mySimpit.registerChannel(AB_STAGE_MESSAGE);
+    // mySimpit.registerChannel(TACLS_RESOURCE_MESSAGE);
+    // mySimpit.registerChannel(TACLS_WASTE_MESSAGE);
+    // mySimpit.registerChannel(CUSTOM_RESOURCE_1_MESSAGE);
+    // mySimpit.registerChannel(CUSTOM_RESOURCE_2_MESSAGE);
 
     // To track EVA
     mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
@@ -226,6 +310,17 @@ public:
         onConnect();
       }
       break;
+
+    case FLIGHT_STATUS_MESSAGE:
+      {
+        if (msgSize == sizeof(flightStatusMessage))
+        {
+          flightStatusMsg = parseMessage<flightStatusMessage>(msg);
+        }
+      }
+      break;
+
+    // | Propulsion Resources |
 
     case LF_MESSAGE:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
@@ -317,14 +412,116 @@ public:
       }
       break;
 
-    case FLIGHT_STATUS_MESSAGE:
-      {
-        if (msgSize == sizeof(flightStatusMessage))
+    // | KSP2 only Resources |
+
+    case INTAKE_AIR_MESSAGE:
+      { //Only works on KSP2
+        if (msgSize == sizeof(resourceMessage))
         {
-          flightStatusMsg = parseMessage<flightStatusMessage>(msg);
+          intakeAirMsg = parseMessage<resourceMessage>(msg);
         }
       }
       break;
+
+    case HYDROGEN_MESSAGE:
+      { //Only works on KSP2
+        if (msgSize == sizeof(resourceMessage))
+        {
+          hydrogenMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case HYDROGEN_STAGE_MESSAGE:
+      { //Only works on KSP2
+        if (msgSize == sizeof(resourceMessage))
+        {
+          hydrogenStageMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case URANIUM_MESSAGE:
+      { //Only works on KSP2
+        if (msgSize == sizeof(resourceMessage))
+        {
+          uraniumMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    // | Vessel Resources |
+
+    case ELECTRIC_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          electricMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case ORE_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          oreMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case AB_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          ablatorMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    case AB_STAGE_MESSAGE:
+      { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
+        if (msgSize == sizeof(resourceMessage))
+        {
+          ablatorStageMsg = parseMessage<resourceMessage>(msg);
+        }
+      }
+      break;
+
+    // case TACLS_RESOURCE_MESSAGE:
+    //   { // (Note: Only works on KSP1. This needs the mod ARP and TAC Life Support to be installed)
+    //     if (msgSize == sizeof(TACLSRessourceMessage))
+    //     {
+    //       TACLSRessourceMessage taclsResourceMsg = parseMessage<TACLSRessourceMessage>(msg);
+    //     }
+    //   }
+    //   break;
+
+    // case TACLS_WASTE_MESSAGE:
+    //   { // (Note: Only works on KSP1. This needs the mod ARP and TAC Life Support to be installed)
+    //     if (msgSize == sizeof(TACLSWasteMessage))
+    //     {
+    //       TACLSWasteMessage taclsWasteMsg = parseMessage<TACLSWasteMessage>(msg);
+    //     }
+    //   } break;
+
+    // case CUSTOM_RESOURCE_1_MESSAGE:
+    //   { // (Note: Only works on KSP1. This needs the mod ARP and Community Resource Pack to be installed)
+    //     if (msgSize == sizeof(CustomResourceMessage))
+    //     {
+    //       CustomResourceMessage customResource1Msg = parseMessage<CustomResourceMessage>(msg);
+    //     }
+    //   }
+    //   break;
+
+    // case CUSTOM_RESOURCE_2_MESSAGE:
+    //   { // (Note: Only works on KSP1. This needs the mod ARP and Community Resource Pack to be installed)
+    //     if (msgSize == sizeof(CustomResourceMessage))
+    //     {
+    //       CustomResourceMessage customResource2Msg = parseMessage<CustomResourceMessage>(msg);
+    //     }
+    //   }
+    //   break;
     }
   }
 
@@ -337,6 +534,8 @@ public:
     default:
     case BankMode::OFF:
       return DisplayData(bankMode);
+
+    // | Propulsion Resources |
 
     case BankMode::LF:
       return DisplayData(bankMode, liquidFuelMsg);
@@ -367,6 +566,39 @@ public:
 
     case BankMode::EV:
       return DisplayData(bankMode, evaMonopropellantMsg);
+
+    // | KSP2 only Resources |
+
+    case BankMode::AI:
+      return DisplayData(bankMode, intakeAirMsg);
+
+    case BankMode::HF:
+      return DisplayData(bankMode, hydrogenMsg);
+
+    case BankMode::HF_STAGE:
+      return DisplayData(bankMode, hydrogenStageMsg);
+
+    case BankMode::UF:
+      return DisplayData(bankMode, uraniumMsg);
+
+    // | Vessel Resources |
+
+    case BankMode::EL:
+      return DisplayData(bankMode, electricMsg);
+
+    case BankMode::OR:
+      return DisplayData(bankMode, oreMsg);
+
+    case BankMode::AB:
+      return DisplayData(bankMode, ablatorMsg);
+
+    case BankMode::AB_STAGE:
+      return DisplayData(bankMode, ablatorStageMsg);
+
+    // case BankMode::T:
+    // case BankMode::TW:
+    // case BankMode::C1:
+    // case BankMode::C2:
     }
   }
 
