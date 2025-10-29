@@ -131,12 +131,13 @@ template <BankSize BANKCOUNT>
 class Meter24 : public LED24OLED12864
 {
 public:
-  Bank banks[(uint8_t)BANKCOUNT];
+  static const uint8_t bankCount = (uint8_t)BANKCOUNT;
+  Bank banks[bankCount];
 
-  Bank::Device oled12864Devices[(uint8_t)BANKCOUNT];
-  bool oled12864Inverted[(uint8_t)BANKCOUNT];
+  Bank::Device oled12864Devices[bankCount];
+  bool oled12864Inverted[bankCount];
 
-  Bank::Device led24Devices[(uint8_t)BANKCOUNT];
+  Bank::Device led24Devices[bankCount];
 
   Meter24(TwoWire& inWire)
   : LED24OLED12864(inWire)

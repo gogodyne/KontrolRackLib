@@ -6,8 +6,11 @@
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_LED24OLED12864.h>
+#include "KontrolRack_ESPWiFi.h"
 
 using namespace KontrolRack;
+
+#define BANKSCENE_COUNT (4 + 1)
 
 ////////////////////////////////////////////////////////////////////////////////
 class KSP_MeterQuad : public KR::Meter24Quad
@@ -15,48 +18,91 @@ class KSP_MeterQuad : public KR::Meter24Quad
 public:
   using Parent = KR::Meter24Quad;
 
-  enum BankScene
-  {
-    Vessel,
-    Stage,
-    XenonGasVessel,
-    XenonGasStage,
-    MAX
-  };
+  ESPWiFi net;
 
-  // Data for display.
+  // Bank
+  enum BankMode
+  {
+    OFF,
+    LF,
+    LF_STAGE,
+    OX,
+    OX_STAGE,
+    SF,
+    SF_STAGE,
+    XE,
+    XE_STAGE,
+    MP,
+    EV,
+    SIZE
+  };
+  struct BankLabel
+  {
+    const char* label;
+    const char* indicator;
+  };
+  const BankLabel bankLabels[BankMode::SIZE] =
+  {
+    {"--", ""},
+    {"Lf", ""},
+    {"Lf", "STG"},
+    {"Ox", ""},
+    {"Ox", "STG"},
+    {"Sf", ""},
+    {"Sf", "STG"},
+    {"Xe", ""},
+    {"Xe", "STG"},
+    {"Mp", ""},
+    {"Ev", "EVA"},
+  };
+  struct BankScene
+  {
+    BankMode mode[bankCount];
+  };
+  BankScene bankScenes[BANKSCENE_COUNT] =
+  {
+    {{BankMode::OFF, BankMode::OFF, BankMode::OFF, BankMode::EV}},// EVA[0]
+    {{BankMode::LF, BankMode::OX, BankMode::SF, BankMode::MP}},
+    {{BankMode::LF_STAGE,BankMode::OX_STAGE, BankMode::SF_STAGE, BankMode::MP}},
+    {{BankMode::LF, BankMode::OX, BankMode::XE, BankMode::MP}},
+    {{BankMode::LF_STAGE, BankMode::OX_STAGE, BankMode::XE_STAGE, BankMode::MP}},
+  };
+  uint8_t bankSceneIndex = 1;// Skip EVA[0]
+
+  // Data for display
   struct DisplayData
   {
-    const char* label = nullptr;
-    const resourceMessage* resourceMsg = nullptr;
-    float level = 0;
-    uint8_t meterValue = 0;
-    uint8_t percent = 0;
+    int bankMode = BankMode::OFF;
     float total = 0;
     float available = 0;
-    bool isStage = false;
+    float level = 0;// [0-1]
+    uint8_t meterValue = 0;// number of LEDs
+    uint8_t percent = 0;// [0-100]
 
-    DisplayData() {}
-    DisplayData(const char* label, const resourceMessage& message, bool isStage)
-    : label(label)
-    , resourceMsg(&message)
-    , isStage(isStage)
+    DisplayData()
+    : bankMode(BankMode::OFF)
+    {}
+    DisplayData(BankMode bankMode)
+    : bankMode(bankMode)
+    {}
+    DisplayData(BankMode bankMode, float total, float available)
+    : bankMode(bankMode)
+    , total(total)
+    , available(available)
     {
-      if (resourceMsg)
+      if (total)
       {
-        if (resourceMsg->total)
-        {
-          total = resourceMsg->total;
-          available = resourceMsg->available;
-          level = available / total;
-          percent = level * 100;
-          meterValue = level * ((float)LED24::getSize() - 1);
-        }
+        level = available / total;
+        percent = level * 100;
+        meterValue = level * ((float)LED24::getSize() - 1);
       }
     }
+    DisplayData(BankMode bankMode, const resourceMessage& message)
+    : DisplayData(bankMode, message.total, message.available)
+    {}
   };
 
-  // KSP Messages.
+  // KSP Messages
   void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
   resourceMessage liquidFuelMsg;
   resourceMessage liquidFuelStageMsg;
@@ -71,31 +117,9 @@ public:
 
   flightStatusMessage flightStatusMsg;
 
-  // Connection.
+  // Connection
   int connectionState = 0;
   unsigned long pingMs = 0;
-
-  // Bank.
-  int bankScene = BankScene::Vessel;
-  enum BankMode
-  {
-    Lf,
-    Ox,
-    Sf,
-    Xe,
-    Mp,
-    Ev,
-    SIZE
-  };
-  const char* bankLabels[BankMode::SIZE] =
-  {
-    "Lf",
-    "Ox",
-    "Sf",
-    "Xe",
-    "Mp",
-    "Ev"
-  };
 
   KSP_MeterQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -112,17 +136,15 @@ public:
       led24Devices[i].begin(12);
       oled12864Devices[i].begin(12);
     }
-    banks[0].mode = BankMode::Lf;
-    banks[1].mode = BankMode::Ox;
-    banks[2].mode = BankMode::Sf;
-    banks[3].mode = BankMode::Mp;
 
     Parent::begin(12, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24::Info(LED24_ADDRESS, &wire, LED24_Brightness), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    net.begin();
   }
 
   virtual void loop() override
   {
     Parent::loop();
+    net.loop();
 
     if (encBtn.didPress())
     {
@@ -130,11 +152,11 @@ public:
     }
     if (encBtn.didIncrease())
     {
-      bankScene = min(bankScene + 1, BankScene::MAX - 1);
+      bankSceneIndex = min(bankSceneIndex + 1, BANKSCENE_COUNT - 1);
     }
     if (encBtn.didDecrease())
     {
-      bankScene = max(bankScene - 1, 0);
+      bankSceneIndex = max(bankSceneIndex - 1, 0);// Skip EVA[0]
     }
 
     tryConnect();
@@ -148,14 +170,16 @@ public:
   {
     unsigned long ms = millis();
 
-    // Ping.
+    // Ping
     if (ms >= pingMs)
     {
       pingMs = ms + 3000;
-      mySimpit.send(ECHO_REQ_MESSAGE, "PING\n", 6);
+      char buf[48] = {0};
+      snprintf(buf, 48, "'%s' PING\n", net.hostName);
+      mySimpit.send(ECHO_REQ_MESSAGE, buf, strlen(buf) + 1);
     }
 
-    // Connect.
+    // Connect
     static unsigned long tryConnectMs = 0;
     if ((connectionState == 0) && (ms >= tryConnectMs))
     {
@@ -188,6 +212,7 @@ public:
     mySimpit.registerChannel(MONO_MESSAGE);
     mySimpit.registerChannel(EVA_MESSAGE);
 
+    // To track EVA
     mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
   }
 
@@ -305,51 +330,44 @@ public:
 
   virtual DisplayData makeDisplayData(uint8_t bankIndex)
   {
-    if (bankIndex == 0)
-    {
-      if (!flightStatusMsg.isInEVA())
-      {
-        if (bankScene == BankScene::Stage || bankScene == BankScene::XenonGasStage)
-          return DisplayData(bankLabels[BankMode::Lf], liquidFuelStageMsg, true);
-        return DisplayData(bankLabels[BankMode::Lf], liquidFuelMsg, false);
-      }
-    }
+    BankMode bankMode = flightStatusMsg.isInEVA() ? BankMode::EV : bankScenes[bankSceneIndex].mode[bankIndex];
 
-    if (bankIndex == 1)
+    switch (bankMode)
     {
-      if (!flightStatusMsg.isInEVA())
-      {
-        if (bankScene == BankScene::Stage || bankScene == BankScene::XenonGasStage)
-          return DisplayData(bankLabels[BankMode::Ox], oxidizerStageMsg, true);
-        return DisplayData(bankLabels[BankMode::Ox], oxidizerMsg, false);
-      }
-    }
+    default:
+    case BankMode::OFF:
+      return DisplayData(bankMode);
 
-    if (bankIndex == 2)
-    {
-      if (!flightStatusMsg.isInEVA())
-      {
-        if (bankScene == BankScene::Stage)
-          return DisplayData(bankLabels[BankMode::Sf], solidFuelStageMsg, true);
-        if (bankScene == BankScene::Vessel)
-          return DisplayData(bankLabels[BankMode::Sf], solidFuelMsg, false);
-        if (bankScene == BankScene::XenonGasStage)
-          return DisplayData(bankLabels[BankMode::Xe], xenonGasStageMsg, true);
-        if (bankScene == BankScene::XenonGasVessel)
-          return DisplayData(bankLabels[BankMode::Xe], xenonGasMsg, false);
-      }
-    }
+    case BankMode::LF:
+      return DisplayData(bankMode, liquidFuelMsg);
 
-    if (bankIndex == 3)
-    {
-      if (!flightStatusMsg.isInEVA())
-      {
-        return DisplayData(bankLabels[BankMode::Mp], monopropellantMsg, false);
-      }
-      return DisplayData(bankLabels[BankMode::Ev], evaMonopropellantMsg, false);
-    }
+    case BankMode::LF_STAGE:
+      return DisplayData(bankMode, liquidFuelStageMsg);
 
-    return DisplayData();
+    case BankMode::OX:
+      return DisplayData(bankMode, oxidizerMsg);
+
+    case BankMode::OX_STAGE:
+      return DisplayData(bankMode, oxidizerStageMsg);
+
+    case BankMode::SF:
+      return DisplayData(bankMode, solidFuelMsg);
+
+    case BankMode::SF_STAGE:
+      return DisplayData(bankMode, solidFuelStageMsg);
+
+    case BankMode::XE:
+      return DisplayData(bankMode, xenonGasMsg);
+
+    case BankMode::XE_STAGE:
+      return DisplayData(bankMode, xenonGasStageMsg);
+
+    case BankMode::MP:
+      return DisplayData(bankMode, monopropellantMsg);
+
+    case BankMode::EV:
+      return DisplayData(bankMode, evaMonopropellantMsg);
+    }
   }
 
   //------------------------------------------------------------------------------
@@ -367,6 +385,7 @@ public:
     const int LABELSIZE = 4;
     const int LABELSIZE_SM = 2;
     DisplayData displayData = makeDisplayData(bankIndex);
+    BankLabel bankLabel = bankLabels[displayData.bankMode];
 
     // OLED
     if (isDirty || oled12864Devices[bankIndex].timing.isTick)
@@ -374,63 +393,70 @@ public:
       oled12864.clear();
       drawBankInverted(bankIndex, oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
       {
-        if (displayData.label)
+        if (bankLabel.label)
         {
           int16_t x1, y1;
           uint16_t w, h;
 
-          // Label size.
+          // Label size
           oled12864.gfx.setTextSize(LABELSIZE);
-          oled12864.gfx.getTextBounds(displayData.label, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
 
-          // Label frame.
+          // Label frame
           uint16_t labelHeight = LABELSIZE + h + LABELSIZE;
           oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, LABELSIZE + LABELSIZE, WHITE);
 
-          // Label.
+          // Label
           oled12864.gfx.setTextSize(LABELSIZE);
           oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, LABELSIZE);
-          oled12864.gfx.print(displayData.label);
+          oled12864.gfx.print(bankLabel.label);
 
-          // Indicators.
+          // Indicators
           oled12864.gfx.setTextSize(LABELSIZE_SM);
           oled12864.gfx.setCursor(LABELSIZE, LABELSIZE);
           {
-            // Bank Scene.
-            oled12864.gfx.printf("%d", bankScene);
-            // Connection status.
+            // Bank Scene index
+            oled12864.gfx.printf("%d", bankSceneIndex);
+
+            // Connection status
             if (connectionState < 1)
             {
               oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
             }
             oled12864.gfx.println();
             oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + LABELSIZE, oled12864.gfx.getCursorY());
-            // Stage.
-            if (displayData.isStage)
+
+            // Indicator/Stage
+            if (bankLabel.indicator && strlen(bankLabel.indicator))
             {
-              oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? "STG" : "---");
+              oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? bankLabel.indicator : "---");
             }
           }
 
-          // Available/Total.
-          char text[32];
-          text[0] = 0;
-          oled12864.gfx.setTextSize(LABELSIZE_SM);
-          oled12864.gfx.setCursor(LABELSIZE, labelHeight + LABELSIZE);
-          if (timing.isHz(1.f/3.f))
+          // Available/Total
+          if (displayData.total)
           {
-            oled12864.gfx.print("+");
-            sprintf(text, "%.1f", displayData.available);
+            char text[32];
+            text[0] = 0;
+            oled12864.gfx.setTextSize(LABELSIZE_SM);
+            oled12864.gfx.setCursor(LABELSIZE, labelHeight + LABELSIZE);
+            if (timing.isHz(1.f/3.f))
+            {
+              oled12864.gfx.print("+");
+              // Available
+              sprintf(text, "%.1f", displayData.available);
+            }
+            else
+            {
+              oled12864.gfx.print("/");
+              // Total
+              sprintf(text, "%.1f", displayData.total);
+            }
+            oled12864.gfx.setTextSize(LABELSIZE_SM);
+            oled12864.gfx.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+            oled12864.gfx.setCursor(oled12864.gfx.width() - w - LABELSIZE, labelHeight + LABELSIZE);
+            oled12864.gfx.print(text);
           }
-          else
-          {
-            oled12864.gfx.print("/");
-            sprintf(text, "%.1f", displayData.total);
-          }
-          oled12864.gfx.setTextSize(LABELSIZE_SM);
-          oled12864.gfx.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-          oled12864.gfx.setCursor(oled12864.gfx.width() - w - LABELSIZE, labelHeight + LABELSIZE);
-          oled12864.gfx.print(text);
         }
       }
       oled12864.render();
@@ -442,7 +468,7 @@ public:
       led24.clear();
       drawLedHighlight(bankIndex);
       {
-        if (displayData.resourceMsg)
+        if (displayData.total)
         {
           for (uint8_t led = 0; led < LED24::getSize(); ++led)
           {
@@ -457,6 +483,10 @@ public:
             if (led < displayData.meterValue - 1)
               led24.setBar(led, LED_GREEN);
           }
+        }
+        else
+        {
+          led24.setBar(0, LED_YELLOW);
         }
       }
       led24.render();

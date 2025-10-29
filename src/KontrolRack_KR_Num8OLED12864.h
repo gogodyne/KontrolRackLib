@@ -145,10 +145,11 @@ template <BankSize BANKCOUNT>
 class Numeric8 : public Num8OLED12864
 {
 public:
-  Bank banks[(uint8_t)BANKCOUNT];
+  static const uint8_t bankCount = (uint8_t)BANKCOUNT;
+  Bank banks[bankCount];
 
-  Bank::Device oled12864Devices[(uint8_t)BANKCOUNT];
-  bool oled12864Inverted[(uint8_t)BANKCOUNT];
+  Bank::Device oled12864Devices[bankCount];
+  bool oled12864Inverted[bankCount];
 
   Numeric8(TwoWire& inWire)
   : Num8OLED12864(inWire)
