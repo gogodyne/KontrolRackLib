@@ -21,7 +21,7 @@ public:
   ESPWiFi net;
 
   // Bank
-  enum BankMode
+  enum class BankMode : uint8_t
   {
     OFF,
     LF,
@@ -41,7 +41,7 @@ public:
     const char* label;
     const char* indicator;
   };
-  const BankLabel bankLabels[BankMode::SIZE] =
+  const BankLabel bankLabels[(int)BankMode::SIZE] =
   {
     {"--", ""},
     {"Lf", ""},
@@ -72,7 +72,7 @@ public:
   // Data for display
   struct DisplayData
   {
-    int bankMode = BankMode::OFF;
+    BankMode bankMode = BankMode::OFF;
     float total = 0;
     float available = 0;
     float level = 0;// [0-1]
@@ -385,7 +385,7 @@ public:
     const int LABELSIZE = 4;
     const int LABELSIZE_SM = 2;
     DisplayData displayData = makeDisplayData(bankIndex);
-    BankLabel bankLabel = bankLabels[displayData.bankMode];
+    BankLabel bankLabel = bankLabels[(int)displayData.bankMode];
 
     // OLED
     if (isDirty || oled12864Devices[bankIndex].timing.isTick)
