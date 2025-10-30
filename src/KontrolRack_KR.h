@@ -21,7 +21,7 @@ enum class BankSize : uint8_t
 
 enum class BankSelectMode : int8_t
 {
-  Normal = 0,
+  None = 0,
   Select,
   Edit,
 };
@@ -93,8 +93,8 @@ public:
 
   // Banks
   Bank* _banks = nullptr;
-  int8_t bankSelected = 0;
-  BankSelectMode bankSelectMode = BankSelectMode::Normal;
+  int8_t bankSelectedIndex = 0;
+  BankSelectMode bankSelectMode = BankSelectMode::None;
   timing_t bankSelectModeTimeout = 0;
   // keeps the highlight solid while the selection is changing
   timing_t highlightTimeout = 0;
@@ -120,7 +120,7 @@ public:
       useEncBtn = true;
     }
 
-    // Init I2C switch.
+    // Init I2C switch
     i2cSwitch.begin(switchAddress, wire);
     i2cSwitch.setPortBits(0);
   }
@@ -137,36 +137,44 @@ public:
 
     bool isDirty = encBtn.didChange();
 
-    // Draw the Module.
+    // Draw the Module
     if (timing.isTick || isDirty)
     {
       draw();
     }
 
-    // Draw all Banks.
+    // Draw all Banks
     if (i2cSwitch.isConnected())
     {
       drawBanks(isDirty);
     }
 
-    // Automatic mode timeout.
-    if (bankSelectModeTimeout < timing.ms)
-    {
-      setBankSelectMode(BankSelectMode::Normal);
-    }
+    // Automatic mode timeout
+    checkBankSelectModeTimeout();
   }
 
-  // Draw the Module.
+  //------------------------------------------------------------------------------
+
+  // Open the Switch ports for a bank [0-3]
+  // (0-3) also opens (4-7); up to 4 banks of 2 devices each, on 8-channel MUX
+  virtual void openBankPorts(uint8_t bankIndex)
+  {
+    bankIndex = bankIndex & 0b11;
+    uint8_t portBits = (bit(bankIndex) << 4) | bit(bankIndex);
+    i2cSwitch.setPortBits(portBits);
+  }
+
+  // Draw the Module
   virtual void draw()
   {
   }
 
-  // Override to draw each device of a Bank.
+  // Override to draw each device of a Bank
   virtual void drawBank(uint8_t bankIndex, bool isDirty)
   {
   }
 
-  // Override to flag drawing for devices.
+  // Override to flag drawing for devices
   virtual bool isDrawBankTick(uint8_t bankIndex)
   {
     return false;
@@ -184,69 +192,53 @@ public:
     }
   }
 
-  // Extend the highlight emphasis.
-  virtual void resetHighlightTimeout()
+  // Extend the highlight emphasis
+  virtual void resetBankHighlightTimeout()
   {
     highlightTimeout = timing.ms + 500;
   }
 
-  // Select a bank.
+  // Select a bank
   virtual int8_t setBankSelected(int8_t bankIndex)
   {
-    resetHighlightTimeout();
     resetBankSelectModeTimeout();
-    bankSelected = constrain(bankIndex, 0, getBankCount() - 1);
+    bankSelectedIndex = constrain(bankIndex, 0, getBankCount() - 1);
 
-    return bankSelected;
+    return bankSelectedIndex;
   }
 
-  // Select next/prev bank.
-  virtual int8_t cycleBankSelected(int delta)
+  // Select next/prev bank
+  virtual int8_t cycleBankSelected(bool next)
   {
-    setBankSelected(bankSelected + delta);
+    setBankSelected(bankSelectedIndex + (next ? 1 : -1));
 
-    return bankSelected;
+    return bankSelectedIndex;
   }
 
-  // Extend the mode timeout.
+  // Extend the mode timeout
   virtual void resetBankSelectModeTimeout()
   {
-    bankSelectModeTimeout = timing.ms + 3000;
+    resetBankHighlightTimeout();
+    bankSelectModeTimeout = timing.ms + 5000;
   }
 
-  // Set the module mode.
+  // Set the module mode
   virtual void setBankSelectMode(BankSelectMode inBankSelectMode)
   {
     resetBankSelectModeTimeout();
     bankSelectMode = inBankSelectMode;
   }
 
-  // Set the next/prev module mode.
-  virtual BankSelectMode cycleBankSelectMode(bool next = true)
+  virtual bool checkBankSelectModeTimeout()
   {
-    switch (bankSelectMode)
+    if ((bankSelectMode != BankSelectMode::None) && (bankSelectModeTimeout < timing.ms))
     {
-    case BankSelectMode::Normal:
-      setBankSelectMode(next ? BankSelectMode::Select : BankSelectMode::Edit);
-      break;
-    case BankSelectMode::Select:
-      setBankSelectMode(next ? BankSelectMode::Edit : BankSelectMode::Normal);
-      break;
-    case BankSelectMode::Edit:
-      setBankSelectMode(next ? BankSelectMode::Normal : BankSelectMode::Select);
-      break;
+      setBankSelectMode(BankSelectMode::None);
+
+      return true;
     }
 
-    return bankSelectMode;
-  }
-
-  // Open the Switch ports for a bank [0-3].
-  // (0-3) also opens (4-7); up to 4 banks of 2 devices each, on 8-channel MUX.
-  virtual void openBankPorts(uint8_t bankIndex)
-  {
-    bankIndex = bankIndex & 0b11;
-    uint8_t portBits = (bit(bankIndex) << 4) | bit(bankIndex);
-    i2cSwitch.setPortBits(portBits);
+    return false;
   }
 };
 

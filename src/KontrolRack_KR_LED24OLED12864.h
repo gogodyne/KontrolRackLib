@@ -26,6 +26,7 @@ public:
   OLED12864 oled12864;
   Bank::Device* _oled12864Devices = nullptr;
   bool* _oled12864Inverted = nullptr;
+  bool* led24Blink = nullptr;
 
   LED24 led24;
   Bank::Device* _led24Devices = nullptr;
@@ -75,7 +76,36 @@ public:
     }
   }
 
-  virtual void drawBankInverted(uint8_t bankIndex, bool invert)
+  virtual void drawOledEffects(uint8_t bankIndex)
+  {
+    if (bankSelectMode == BankSelectMode::None)
+    {
+      // screen saver
+      drawOledInverted(bankIndex, _oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
+    }
+    else
+    {
+      drawOledHighlight(bankIndex);
+    }
+  }
+
+  virtual void drawOledHighlight(uint8_t bankIndex)
+  {
+    bool isSelected = (bankIndex == bankSelectedIndex) && (bankSelectMode != BankSelectMode::None);
+    bool isEdit = (bankSelectMode == BankSelectMode::Edit);
+
+    // selection highlight
+    if (isSelected && (isEdit || timing.isHz(2)))
+    {
+      drawOledInverted(bankIndex, true);
+    }
+    else
+    {
+      drawOledInverted(bankIndex, false);
+    }
+  }
+
+  virtual void drawOledInverted(uint8_t bankIndex, bool invert)
   {
     if (_oled12864Inverted)
     {
@@ -89,37 +119,45 @@ public:
     }
   }
 
-  virtual void drawOledHighlight(uint8_t index)
+  virtual void drawLed24Effects(uint8_t bankIndex)
   {
-    bool isSelected = (index == bankSelected) && (bankSelectMode != BankSelectMode::Normal);
-    bool isEdit = (bankSelectMode == BankSelectMode::Edit);
-    bool isHighlight = highlightTimeout > timing.ms;
-
-    // selection highlight
-    if (isSelected && (isHighlight || isEdit || timing.isHz(2)))
+    if (bankSelectMode == BankSelectMode::None)
     {
-      oled12864.gfx.invertDisplay(true);
+      drawLed24Blink(bankIndex, false);
     }
     else
     {
-      oled12864.gfx.invertDisplay(false);
+      drawLed24Highlight(bankIndex);
     }
   }
 
-  virtual void drawLedHighlight(uint8_t index)
+  virtual void drawLed24Highlight(uint8_t bankIndex)
   {
-    bool isSelected = (index == bankSelected) && (bankSelectMode != BankSelectMode::Normal);
+    bool isSelected = (bankIndex == bankSelectedIndex) && (bankSelectMode != BankSelectMode::None);
     bool isEdit = (bankSelectMode == BankSelectMode::Edit);
-    bool isHighlight = highlightTimeout > timing.ms;
 
     // Edit indicator
-    if (isSelected && isEdit && !isHighlight)
+    if (isSelected && isEdit)
     {
-      led24.blinkDisplay(true);
+      drawLed24Blink(bankIndex, true);
     }
     else
     {
-      led24.blinkDisplay(false);
+      drawLed24Blink(bankIndex, false);
+    }
+  }
+
+  virtual void drawLed24Blink(uint8_t bankIndex, bool blink)
+  {
+    if (led24Blink)
+    {
+      // Only if changing.
+      if (led24Blink[bankIndex] != blink)
+      {
+        led24Blink[bankIndex] = blink;
+
+        led24.blinkDisplay(led24Blink[bankIndex]);
+      }
     }
   }
 };
@@ -136,6 +174,7 @@ public:
 
   Bank::Device oled12864Devices[bankCount];
   bool oled12864Inverted[bankCount];
+  bool _led24Blink[bankCount];
 
   Bank::Device led24Devices[bankCount];
 
@@ -146,6 +185,7 @@ public:
 
     _oled12864Devices = oled12864Devices;
     _oled12864Inverted = oled12864Inverted;
+    led24Blink = _led24Blink;
 
     _led24Devices = led24Devices;
   }
