@@ -25,8 +25,8 @@ public:
   using Parent = ModuleI2C;
 
   OLED12864 oled12864;
-  Bank::Device* _oled12864Devices = nullptr;
-  bool* _oled12864Inverted = nullptr;
+  Bank::Device* oled12864Devices = nullptr;
+  bool* oled12864Inverted = nullptr;
   Num8 num8;
   Bank::Device num8Device;
 
@@ -73,7 +73,7 @@ public:
 
     for (int i = 0; i < getBankCount(); ++i)
     {
-      if (_oled12864Devices) _oled12864Devices[i].loop();
+      if (oled12864Devices) oled12864Devices[i].loop();
     }
   }
 
@@ -94,7 +94,7 @@ public:
     if (bankSelectMode == BankSelectMode::None)
     {
       // screen saver
-      drawOledInverted(bankIndex, _oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
+      drawOledInverted(bankIndex, oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
     }
     else
     {
@@ -120,14 +120,14 @@ public:
 
   virtual void drawOledInverted(uint8_t bankIndex, bool invert)
   {
-    if (_oled12864Inverted)
+    if (oled12864Inverted)
     {
       // Only if changing.
-      if (_oled12864Inverted[bankIndex] != invert)
+      if (oled12864Inverted[bankIndex] != invert)
       {
-        _oled12864Inverted[bankIndex] = invert;
+        oled12864Inverted[bankIndex] = invert;
 
-        oled12864.gfx.invertDisplay(_oled12864Inverted[bankIndex]);
+        oled12864.gfx.invertDisplay(oled12864Inverted[bankIndex]);
       }
     }
   }
@@ -158,18 +158,18 @@ class Numeric8 : public Num8OLED12864
 {
 public:
   static const uint8_t bankCount = (uint8_t)BANKCOUNT;
-  Bank banks[bankCount];
+  Bank _banks[bankCount];
 
-  Bank::Device oled12864Devices[bankCount];
-  bool oled12864Inverted[bankCount];
+  Bank::Device _oled12864Devices[bankCount];
+  bool _oled12864Inverted[bankCount];
 
   Numeric8(TwoWire& inWire)
   : Num8OLED12864(inWire)
   {
-    _banks = banks;
+    banks = _banks;
 
-    _oled12864Devices = oled12864Devices;
-    _oled12864Inverted = oled12864Inverted;
+    oled12864Devices = _oled12864Devices;
+    oled12864Inverted = _oled12864Inverted;
   }
 
   virtual uint8_t getBankCount() const override { return (uint8_t)BANKCOUNT; }

@@ -92,7 +92,7 @@ public:
   bool useEncBtn = false;
 
   // Banks
-  Bank* _banks = nullptr;
+  Bank* banks = nullptr;
   int8_t bankSelectedIndex = 0;
   BankSelectMode bankSelectMode = BankSelectMode::None;
   timing_t bankSelectModeTimeout = 0;
