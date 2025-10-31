@@ -72,7 +72,7 @@ public:
   {
     const char* name;
     const char* label;
-    const char* indicator;
+    const char* sublabel;
   };
 
   // Labels per mode
@@ -800,10 +800,6 @@ public:
   {
     Parent::drawBank(bankIndex, isDirty);
 
-    const int LABELSIZE = 4;
-    const int LABELSIZE_M = 2;
-    const int LABELSIZE_SM = 1;
-
     DisplayData displayData = makeDisplayData(bankIndex);
     BankLabel bankLabel = bankLabels[(int)displayData.bankDisplayMode];
 
@@ -818,21 +814,21 @@ public:
           uint16_t w, h;
 
           // Label size
-          oled12864.gfx.setTextSize(LABELSIZE);
+          oled12864.gfx.setTextSize(SSD1306::Size::Lg);
           oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
 
           // Label frame
-          uint16_t labelHeight = LABELSIZE + h + LABELSIZE;
-          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, LABELSIZE + LABELSIZE, WHITE);
+          uint16_t labelHeight = SSD1306::Size::Lg + h + SSD1306::Size::Lg;
+          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, SSD1306::Size::Lg + SSD1306::Size::Lg, WHITE);
 
           // Label
-          oled12864.gfx.setTextSize(LABELSIZE);
-          oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, LABELSIZE);
+          oled12864.gfx.setTextSize(SSD1306::Size::Lg);
+          oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, SSD1306::Size::Lg);
           oled12864.gfx.print(bankLabel.label);
 
           // Indicators
-          oled12864.gfx.setTextSize(LABELSIZE_M);
-          oled12864.gfx.setCursor(LABELSIZE, LABELSIZE);
+          oled12864.gfx.setTextSize(SSD1306::Size::Sm);
+          oled12864.gfx.setCursor(SSD1306::Size::Lg, SSD1306::Size::Lg);
           {
             // Info
             if (bankIndex == 0)
@@ -853,14 +849,14 @@ public:
             }
 
             // Indicator/Stage
-            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + LABELSIZE, oled12864.gfx.getCursorY());
-            if (bankLabel.indicator && strlen(bankLabel.indicator))
+            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + SSD1306::Size::Lg, oled12864.gfx.getCursorY());
+            if (bankLabel.sublabel && strlen(bankLabel.sublabel))
             {
-              oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? bankLabel.indicator : "---");
+              oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? bankLabel.sublabel : "---");
             }
           }
 
-          oled12864.gfx.setCursor(LABELSIZE, labelHeight + LABELSIZE);
+          oled12864.gfx.setCursor(SSD1306::Size::Lg, labelHeight + SSD1306::Size::Lg);
           if (bankSelectMode == KR::BankSelectMode::None)
           {
             // Available/Total
@@ -880,16 +876,16 @@ public:
                 // Total
                 sprintf(text, "%.1f", displayData.total);
               }
-              oled12864.gfx.setTextSize(LABELSIZE_M);
+              oled12864.gfx.setTextSize(SSD1306::Size::Sm);
               oled12864.gfx.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-              oled12864.gfx.setCursor(oled12864.gfx.width() - w - LABELSIZE, labelHeight + LABELSIZE);
+              oled12864.gfx.setCursor(oled12864.gfx.width() - w - SSD1306::Size::Lg, labelHeight + SSD1306::Size::Lg);
               oled12864.gfx.print(text);
             }
           }
           else
           // Editing
           {
-            oled12864.gfx.setTextSize(LABELSIZE_SM);
+            oled12864.gfx.setTextSize(SSD1306::Size::Xs);
             // Bank Mode name
             oled12864.gfx.print(bankLabel.name);
           }

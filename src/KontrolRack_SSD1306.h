@@ -10,6 +10,15 @@ namespace KontrolRack {
 class SSD1306
 {
 public:
+  enum Size
+  {
+    Xs = 1,
+    Sm = 2,
+    Md = 3,
+    Lg = 4,
+    XL = 5,
+  };
+
   Adafruit_SSD1306 driver;
   bool isBlink = false;
   Adafruit_GFX& gfx;
