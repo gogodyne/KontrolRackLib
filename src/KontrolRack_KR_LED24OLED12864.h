@@ -95,7 +95,7 @@ public:
     bool isEdit = (bankSelectMode == BankSelectMode::Edit);
 
     // selection highlight
-    if (isSelected && (isEdit || timing.isHz(2)))
+    if (isSelected && (isEdit || timing.isHz(2) || (bankHighlightTimeout > timing.ms)))
     {
       drawOledInverted(bankIndex, true);
     }

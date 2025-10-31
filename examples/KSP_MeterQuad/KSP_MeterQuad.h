@@ -12,11 +12,11 @@ KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will commu
 using namespace KontrolRack;
 
 #define BANKSCENE_COUNT (4 + 1)
-
-////////////////////////////////////////////////////////////////////////////////
-#define BANKSCENE_INDEX_DEFAULT 1// skip EVA[0]
 #define BANKSCENE_INDEX_KEY "bankSceneIndex"
 #define BANKSCENE_ROW_KEYFORMAT "row%d"
+#define BANKSCENE_INDEX_DEFAULT 1// skip EVA[0]
+
+////////////////////////////////////////////////////////////////////////////////
 #define s_KSP_MeterQuad "KSP_MeterQuad"// max 15 characters
 #define PREFS_Namespace s_KSP_MeterQuad
 class KSP_MeterQuad : public KR::Meter24Quad
@@ -24,13 +24,14 @@ class KSP_MeterQuad : public KR::Meter24Quad
 public:
   using Parent = KR::Meter24Quad;
 
+  Preferences preferences;
   ESPWiFi net;
 
   // Bank
-  // Modes that a Bank can have
   enum class BankDisplayMode : uint8_t
   {
     OFF,
+
     LF,// liquid fuel
     LF_STAGE,
     OX,// oxidizer
@@ -63,18 +64,22 @@ public:
     C6,// custom resource
     C7,// custom resource
     C8,// custom resource
+
     SIZE
   };
+
   struct BankLabel
   {
     const char* name;
     const char* label;
     const char* indicator;
   };
+
   // Labels per mode
   const BankLabel bankLabels[(int)BankDisplayMode::SIZE] =
   {
     {"(off)",               "--",     ""},
+
     {"Liquid Fuel",         "Lf",     ""},
     {"Liquid Fuel (stage)", "Lf",     "STG"},
     {"Oxidizer",            "Ox",     ""},
@@ -108,6 +113,7 @@ public:
     {"Resource 7",          "R7",     ""},
     {"Resource 8",          "R8",     ""},
   };
+
   // A preset group of Bank modes; one mode per Bank
   struct BankScene
   {
@@ -136,9 +142,11 @@ public:
     DisplayData()
     : bankDisplayMode(BankDisplayMode::OFF)
     {}
+
     DisplayData(BankDisplayMode bankDisplayMode)
     : bankDisplayMode(bankDisplayMode)
     {}
+
     DisplayData(BankDisplayMode bankDisplayMode, float total, float available)
     : bankDisplayMode(bankDisplayMode)
     , total(total)
@@ -151,6 +159,7 @@ public:
         meterValue = level * ((float)LED24::getSize() - 1);
       }
     }
+
     DisplayData(BankDisplayMode bankDisplayMode, const resourceMessage& message)
     : DisplayData(bankDisplayMode, message.total, message.available)
     {}
@@ -191,8 +200,6 @@ public:
   int connectionState = 0;
   unsigned long heartbeatNextMs = 0;
 
-  Preferences preferences;
-
   KSP_MeterQuad(TwoWire& inWire)
   : Parent(inWire)
   {}
@@ -206,7 +213,7 @@ public:
 
     for (int i = 0; i < getBankCount(); ++i)
     {
-      // Start the devices.
+      // Start the devices
       led24Devices[i].begin(12);
       oled12864Devices[i].begin(12);
     }
@@ -305,18 +312,21 @@ public:
     }
   }
 
+  //------------------------------------------------------------------------------
+  // Preferences
+
   virtual void prefsBegin()
   {
     preferences.begin(PREFS_Namespace);
-    prefs(true);
+    prefsLoad();
   }
 
   virtual void prefsStore()
   {
-    prefs(false);
+    prefsLoad(false);
   }
 
-  virtual void prefs(bool load)
+  virtual void prefsLoad(bool load = true)
   {
     // Selected Scene index
     {
@@ -824,18 +834,22 @@ public:
           oled12864.gfx.setTextSize(LABELSIZE_M);
           oled12864.gfx.setCursor(LABELSIZE, LABELSIZE);
           {
-            // Bank Scene index
-            oled12864.gfx.printf("%d", bankSceneIndex);
-
-            // Connection status
-            if (connectionState < 1)
+            oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
             {
-              oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+              // Bank Scene index
+              oled12864.gfx.printf("%X", bankSceneIndex);
+
+              // Connection status
+              if (connectionState < 1)
+              {
+                oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+              }
+              oled12864.gfx.println();
             }
-            oled12864.gfx.println();
-            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + LABELSIZE, oled12864.gfx.getCursorY());
+            oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 
             // Indicator/Stage
+            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + LABELSIZE, oled12864.gfx.getCursorY());
             if (bankLabel.indicator && strlen(bankLabel.indicator))
             {
               oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? bankLabel.indicator : "---");

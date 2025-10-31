@@ -2,34 +2,88 @@
 #ifndef KSP_NumericQuad_h
 #define KSP_NumericQuad_h
 
+#include <Preferences.h>
 #include <KerbalSimpit.h>
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_Num8OLED12864.h>
+#include "KontrolRack_ESPWiFi.h"
 
 using namespace KontrolRack;
 
+#define BANKSCENE_COUNT (1)
+#define BANKSCENE_INDEX_KEY "bankSceneIndex"
+#define BANKSCENE_ROW_KEYFORMAT "row%d"
 #define BANKDATA_VALUESIZE 32
+#define BANKSCENE_INDEX_DEFAULT 0
 
 ////////////////////////////////////////////////////////////////////////////////
+#define s_KSP_NumericQuad "KSP_NumericQuad"// max 15 characters
+#define PREFS_Namespace s_KSP_NumericQuad
 class KSP_NumericQuad : public KR::Numeric8Quad
 {
 public:
   using Parent = KR::Numeric8Quad;
 
-  // Data for display.
+  Preferences preferences;
+  ESPWiFi net;
+
+  // Bank
+  enum class BankDisplayMode : uint8_t
+  {
+    OFF,
+
+    ApoapsisDistance,
+    ApoapsisTime,
+    PeriapsisDistance,
+    PeriapsisTime,
+
+    SIZE
+  };
+
+  struct BankLabel
+  {
+    const char* label;
+    const char* sublabel;
+  };
+  // Labels per mode
+  const BankLabel bankLabels[(int)BankDisplayMode::SIZE] =
+  {
+    {"--", ""},
+
+    {"Ap", "Dstance to"},
+    {"Ap", "Time until"},
+    {"Pe", "Dstance to"},
+    {"Pe", "Time until"},
+  };
+
+  // A preset group of Bank modes; one mode per Bank
+  struct BankScene
+  {
+    BankDisplayMode modes[bankCount];
+  };
+  BankScene bankScenes[BANKSCENE_COUNT] =
+  {
+    {{BankDisplayMode::ApoapsisDistance, BankDisplayMode::ApoapsisTime, BankDisplayMode::PeriapsisDistance, BankDisplayMode::PeriapsisTime}},
+  };
+  uint8_t bankSceneIndex = BANKSCENE_INDEX_DEFAULT;
+
+  // Data for display
   struct DisplayData
   {
-    const char* label = "";
-    const char* sublabel = "";
+    BankDisplayMode bankDisplayMode;
     const char* units = "";
     const char* scale = "";
     char numeric[BANKDATA_VALUESIZE] = {0};
 
     DisplayData() {}
-    DisplayData(const char* label, const char* sublabel, float data)
-    : label(label)
-    , sublabel(sublabel)
+
+    DisplayData(BankDisplayMode bankDisplayMode)
+    : bankDisplayMode(bankDisplayMode)
+    {}
+
+    DisplayData(BankDisplayMode bankDisplayMode, float data)
+    : bankDisplayMode(bankDisplayMode)
     {
       units = "m";
 
@@ -56,9 +110,9 @@ public:
 
       snprintf(numeric, BANKDATA_VALUESIZE, "%.2f", dataScaled);
     }
-    DisplayData(const char* label, const char* sublabel, int32_t seconds)
-    : label(label)
-    , sublabel(sublabel)
+
+    DisplayData(BankDisplayMode bankDisplayMode, int32_t seconds)
+    : bankDisplayMode(bankDisplayMode)
     {
       units = "s";
       int32_t s = abs(seconds);
@@ -74,7 +128,7 @@ public:
     }
   };
 
-  // KSP Messages.
+  // KSP Messages
   void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
   altitudeMessage altitudeMsg;
   velocityMessage velocityMsg;
@@ -88,7 +142,7 @@ public:
 
   // Connection.
   int connectionState = 0;
-  unsigned long pingMs = 0;
+  unsigned long heartbeatNextMs = 0;
 
   KSP_NumericQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -97,60 +151,205 @@ public:
   using Parent::begin;
   virtual void begin(void (*messageHandler)(byte messageType, byte msg[], byte msgSize))
   {
+    prefsBegin();
+
     mySimpitHandler = messageHandler;
 
-    // Start the devices.
+    // Start the devices
     num8Device.begin(12);
 
     for (int i = 0; i < getBankCount(); ++i)
     {
-      // Start the devices.
+      // Start the devices
       oled12864Devices[i].begin(12);
     }
 
     Parent::begin(12, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    net.begin();
   }
 
   virtual void loop() override
   {
     Parent::loop();
+    net.loop();
 
-    if (btnDidPress())
+    // Input
+    switch (bankSelectMode)
     {
-      // ESP.restart();
-      num8.reset();
-    }
-    if (encDidIncrease())
-    {
-    }
-    if (encDidDecrease())
-    {
+    case KR::BankSelectMode::None:
+      if (encBtn.didPress())
+      {
+        setBankSelectMode(KR::BankSelectMode::Select);
+      }
+      if (encBtn.didChangeEnc())
+      {
+        cycleBankScene(encBtn.didIncrease());
+      }
+      break;
+
+    case KR::BankSelectMode::Select:
+      if (encBtn.didPress())
+      {
+        setBankSelectMode(KR::BankSelectMode::Edit);
+      }
+      if (encBtn.didChangeEnc())
+      {
+        cycleBankSelected(encBtn.didIncrease());
+      }
+      break;
+
+    case KR::BankSelectMode::Edit:
+      if (encBtn.didPress())
+      {
+        setBankSelectMode(KR::BankSelectMode::Select);
+      }
+      if (encBtn.didChangeEnc())
+      {
+        cycleBankDisplayMode(encBtn.didIncrease());
+      }
+      break;
     }
 
-    tryConnect();
+    heartbeat();
     mySimpit.update();
+  }
+
+  //------------------------------------------------------------------------------
+
+  virtual bool checkBankSelectModeTimeout() override
+  {
+    if (Parent::checkBankSelectModeTimeout())
+    {
+      prefsStore();
+
+      return true;
+    }
+
+    return false;
+  }
+
+  virtual void cycleBankDisplayMode(bool next)
+  {
+    resetBankSelectModeTimeout();
+
+    BankDisplayMode& bankDisplayMode = bankScenes[bankSceneIndex].modes[bankSelectedIndex];
+
+    if (next)
+    {
+      if ((int)bankDisplayMode < (int)BankDisplayMode::SIZE - 1)
+        bankDisplayMode = (BankDisplayMode)((int)bankDisplayMode + 1);
+    }
+    else
+    {
+      if ((int)bankDisplayMode > 0)
+        bankDisplayMode = (BankDisplayMode)((int)bankDisplayMode - 1);
+    }
+  }
+
+  virtual void cycleBankScene(bool next)
+  {
+    if (next)
+    {
+      bankSceneIndex = min(bankSceneIndex + 1, BANKSCENE_COUNT - 1);
+    }
+    else
+    {
+      bankSceneIndex = max(bankSceneIndex - 1, 0);
+    }
+  }
+
+  //------------------------------------------------------------------------------
+  // Preferences
+
+  virtual void prefsBegin()
+  {
+    preferences.begin(PREFS_Namespace);
+    prefsLoad();
+  }
+
+  virtual void prefsStore()
+  {
+    prefsLoad(false);
+  }
+
+  virtual void prefsLoad(bool load = true)
+  {
+    // Selected Scene index
+    {
+      const char* key = BANKSCENE_INDEX_KEY;
+      uint8_t value = preferences.getUChar(key, BANKSCENE_INDEX_DEFAULT);
+
+      if (load)
+      {
+        bankSceneIndex = value;
+      }
+      else
+      // store
+      {
+        if (bankSceneIndex != value)
+        {
+          preferences.putUChar(key, bankSceneIndex);
+        }
+      }
+    }
+
+    // All Scene rows
+    {
+      char key[16] = {0};
+
+      for (int i = 0; i < BANKSCENE_COUNT; ++i)
+      {
+        sprintf(key, BANKSCENE_ROW_KEYFORMAT, i);
+        uint8_t modes[bankCount];
+        size_t size = 0;
+
+        if (preferences.getType(key) == PT_BLOB)
+        {
+          size = preferences.getBytes(key, modes, bankCount);
+        }
+
+        if (load)
+        {
+          if (size == bankCount)
+          {
+            memcpy(bankScenes[i].modes, modes, bankCount);
+          }
+        }
+        else
+        // store
+        {
+          if ((size != bankCount) || memcmp(bankScenes[i].modes, modes, bankCount))
+          {
+            preferences.putBytes(key, bankScenes[i].modes, bankCount);
+          }
+        }
+      }
+    }
   }
 
   //------------------------------------------------------------------------------
   // Connection
 
-  virtual int tryConnect()
+  virtual int heartbeat()
   {
+    const int HeartbeatInterval = 5000;
     unsigned long ms = millis();
 
-    // Ping.
-    if (ms >= pingMs)
+    // Ping
+    if (ms >= heartbeatNextMs)
     {
-      pingMs = ms + 3000;
-      mySimpit.send(ECHO_REQ_MESSAGE, "PING\n", 6);
+      heartbeatNextMs = ms + HeartbeatInterval;
+      char buf[48] = {0};
+      snprintf(buf, 48, "'%s' PING\n", net.hostName);
+      // mySimpit.send(ECHO_REQ_MESSAGE, buf, strlen(buf) + 1);
     }
 
-    // Connect.
+    // Connect
     static unsigned long tryConnectMs = 0;
     if ((connectionState == 0) && (ms >= tryConnectMs))
     {
-      tryConnectMs = ms + 3000;
-      connectionState = mySimpit.init();
+      tryConnectMs = ms + HeartbeatInterval;
+      // connectionState = mySimpit.init();
       if (connectionState)
       {
         onConnect();
@@ -303,26 +502,27 @@ public:
     }
   }
 
-  virtual DisplayData getDisplayData(uint8_t bankIndex)
+  virtual DisplayData makeDisplayData(uint8_t bankIndex)
   {
-    if (bankIndex == 0)
-    {
-      return DisplayData("Ap", "Distnce to", apsidesMsg.apoapsis);
-    }
+    BankDisplayMode bankDisplayMode = bankScenes[bankSceneIndex].modes[bankIndex];
 
-    if (bankIndex == 1)
+    switch (bankDisplayMode)
     {
-      return DisplayData("Ap", "Time until", apsidesTimeMsg.apoapsis);
-    }
+    default:
+    case BankDisplayMode::OFF:
+      return DisplayData(bankDisplayMode);
 
-    if (bankIndex == 2)
-    {
-      return DisplayData("Pe", "Distnce to", apsidesMsg.periapsis);
-    }
+    case BankDisplayMode::ApoapsisDistance:
+      return DisplayData(bankDisplayMode, apsidesMsg.apoapsis);
 
-    if (bankIndex == 3)
-    {
-      return DisplayData("Pe", "Time until", apsidesTimeMsg.periapsis);
+    case BankDisplayMode::ApoapsisTime:
+      return DisplayData(bankDisplayMode, apsidesTimeMsg.apoapsis);
+
+    case BankDisplayMode::PeriapsisDistance:
+      return DisplayData(bankDisplayMode, apsidesMsg.periapsis);
+
+    case BankDisplayMode::PeriapsisTime:
+      return DisplayData(bankDisplayMode, apsidesTimeMsg.periapsis);
     }
 
     return DisplayData();
@@ -336,54 +536,65 @@ public:
     return oled12864Devices[bankIndex].timing.isTick || num8Device.timing.isTick;
   }
 
-  virtual void drawBank(uint8_t bankIndex, bool isDirty)
+  virtual void drawBank(uint8_t bankIndex, bool isDirty) override
   {
     Parent::drawBank(bankIndex, isDirty);
 
     const int LABELSIZE = 4;
     const int LABELSIZE_SM = 2;
-    DisplayData displayData = getDisplayData(bankIndex);
+    DisplayData displayData = makeDisplayData(bankIndex);
+    BankLabel bankLabel = bankLabels[(int)displayData.bankDisplayMode];
 
     // OLED
     if (isDirty || oled12864Devices[bankIndex].timing.isTick)
     {
       oled12864.clear();
-      drawBankInverted(bankIndex, oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
       {
-        if (displayData.label)
+        if (bankLabel.label)
         {
           int16_t x1, y1;
           uint16_t w, h;
 
-          // Label size.
+          // Label size
           oled12864.gfx.setTextSize(LABELSIZE);
-          oled12864.gfx.getTextBounds(displayData.label, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
 
-          // Label frame.
+          // Label frame
           uint16_t labelHeight = LABELSIZE + h + LABELSIZE;
           oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, LABELSIZE + LABELSIZE, WHITE);
 
-          // Scale and Units.
+          // Scale and Units
           oled12864.gfx.setTextSize(LABELSIZE);
           oled12864.gfx.setCursor(LABELSIZE, LABELSIZE);
           oled12864.gfx.print(displayData.scale);
           oled12864.gfx.print(displayData.units);
-          // Connection status.
+
           oled12864.gfx.setTextSize(LABELSIZE_SM);
-          if (connectionState < 1)
+          oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
           {
-            oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+            // Bank Scene index
+            oled12864.gfx.printf("%X", bankSceneIndex);
+
+            // Connection status
+            if (connectionState < 1)
+            {
+              oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+            }
           }
-          // Label.
+          oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+
+          // Label
           oled12864.gfx.setTextSize(LABELSIZE);
           oled12864.gfx.setCursor(oled12864.gfx.width() - w - LABELSIZE, LABELSIZE);
-          oled12864.gfx.printf(displayData.label);
-          // Sub-Label.
+          oled12864.gfx.printf(bankLabel.label);
+
+          // Sublabel
           oled12864.gfx.setTextSize(LABELSIZE_SM);
           oled12864.gfx.setCursor(LABELSIZE, labelHeight + LABELSIZE);
-          oled12864.gfx.printf(displayData.sublabel);
+          oled12864.gfx.printf(bankLabel.sublabel);
         }
       }
+      drawOledEffects(bankIndex);
       oled12864.render();
     }
 
@@ -394,7 +605,7 @@ public:
 
       num8.printBank(bankIndex, displayData.numeric);
 
-      drawNumHighlight(bankIndex);
+      drawNum8Effects(bankIndex);
       // (Numeric is not I2C; Render is done in the draw)
     }
   }

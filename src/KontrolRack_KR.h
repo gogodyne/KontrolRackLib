@@ -97,7 +97,7 @@ public:
   BankSelectMode bankSelectMode = BankSelectMode::None;
   timing_t bankSelectModeTimeout = 0;
   // keeps the highlight solid while the selection is changing
-  timing_t highlightTimeout = 0;
+  timing_t bankHighlightTimeout = 0;
 
   ModuleI2C(TwoWire& inWire)
   : Parent()
@@ -195,7 +195,7 @@ public:
   // Extend the highlight emphasis
   virtual void resetBankHighlightTimeout()
   {
-    highlightTimeout = timing.ms + 500;
+    bankHighlightTimeout = timing.ms + 500;
   }
 
   // Select a bank

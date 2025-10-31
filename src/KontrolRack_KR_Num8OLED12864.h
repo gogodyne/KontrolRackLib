@@ -89,7 +89,36 @@ public:
       num8.render();
   }
 
-  virtual void drawBankInverted(uint8_t bankIndex, bool invert)
+  virtual void drawOledEffects(uint8_t bankIndex)
+  {
+    if (bankSelectMode == BankSelectMode::None)
+    {
+      // screen saver
+      drawOledInverted(bankIndex, _oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
+    }
+    else
+    {
+      drawOledHighlight(bankIndex);
+    }
+  }
+
+  virtual void drawOledHighlight(uint8_t bankIndex)
+  {
+    bool isSelected = (bankIndex == bankSelectedIndex) && (bankSelectMode != BankSelectMode::None);
+    bool isEdit = (bankSelectMode == BankSelectMode::Edit);
+
+    // selection highlight
+    if (isSelected && (isEdit || timing.isHz(2) || (bankHighlightTimeout > timing.ms)))
+    {
+      drawOledInverted(bankIndex, true);
+    }
+    else
+    {
+      drawOledInverted(bankIndex, false);
+    }
+  }
+
+  virtual void drawOledInverted(uint8_t bankIndex, bool invert)
   {
     if (_oled12864Inverted)
     {
@@ -103,24 +132,7 @@ public:
     }
   }
 
-  virtual void drawOledHighlight(uint8_t index)
-  {
-    bool isSelected = (index == bankSelectedIndex) && (bankSelectMode != BankSelectMode::Normal);
-    bool isEdit = (bankSelectMode == BankSelectMode::Edit);
-    bool isHighlight = highlightTimeout > timing.ms;
-
-    // selection highlight
-    if (isSelected && (isHighlight || isEdit || timing.isHz(2)))
-    {
-      oled12864.gfx.invertDisplay(true);
-    }
-    else
-    {
-      oled12864.gfx.invertDisplay(false);
-    }
-  }
-
-  virtual void drawNumHighlight(uint8_t index)
+  virtual void drawNum8Effects(uint8_t bankIndex)
   {
     // bool isSelected = (index == bankSelectedIndex) && (bankSelectMode != BankSelectMode::Normal);
     // bool isEdit = (bankSelectMode == BankSelectMode::Edit);
