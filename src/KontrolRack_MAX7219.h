@@ -158,7 +158,6 @@ public:
   virtual void setIntensity(uint8_t bank, float amount)
   {
     amount = constrain(amount, 0.f, 1.f);
-    amount *= amount;// brightness is logarithmic
     uint8_t value = amount * (float)MAX7219_Intensity_Max;
 
     intensities[bank] = value;

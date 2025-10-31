@@ -834,19 +834,23 @@ public:
           oled12864.gfx.setTextSize(LABELSIZE_M);
           oled12864.gfx.setCursor(LABELSIZE, LABELSIZE);
           {
-            oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+            // Info
+            if (bankIndex == 0)
             {
-              // Bank Scene index
-              oled12864.gfx.printf("%X", bankSceneIndex);
-
-              // Connection status
-              if (connectionState < 1)
+              oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
               {
-                oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+                // Bank Scene index
+                oled12864.gfx.printf("%X", bankSceneIndex);
+
+                // Connection status
+                if (connectionState < 1)
+                {
+                  oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+                }
+                oled12864.gfx.println();
               }
-              oled12864.gfx.println();
+              oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
             }
-            oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 
             // Indicator/Stage
             oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + LABELSIZE, oled12864.gfx.getCursorY());

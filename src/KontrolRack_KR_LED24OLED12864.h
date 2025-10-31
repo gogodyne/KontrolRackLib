@@ -135,16 +135,9 @@ public:
   {
     bool isSelected = (bankIndex == bankSelectedIndex) && (bankSelectMode != BankSelectMode::None);
     bool isEdit = (bankSelectMode == BankSelectMode::Edit);
+    bool blink = isSelected && isEdit;
 
-    // Edit indicator
-    if (isSelected && isEdit)
-    {
-      drawLed24Blink(bankIndex, true);
-    }
-    else
-    {
-      drawLed24Blink(bankIndex, false);
-    }
+    drawLed24Blink(bankIndex, blink);
   }
 
   virtual void drawLed24Blink(uint8_t bankIndex, bool blink)

@@ -34,7 +34,7 @@
 #define OLED12864_ADDRESS 0x3C
 
 // Numeric
-#define NUM8_INTENSITY  .2f
+#define NUM8_INTENSITY  .1f
 #if defined(ARDUINO_XIAO_ESP32C3)
 #define NUM8_DIN  10
 #define NUM8_CS   9

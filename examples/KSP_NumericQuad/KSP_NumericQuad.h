@@ -569,19 +569,23 @@ public:
           oled12864.gfx.print(displayData.scale);
           oled12864.gfx.print(displayData.units);
 
-          oled12864.gfx.setTextSize(LABELSIZE_SM);
-          oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+          // Info
+          if (bankIndex == 0)
           {
-            // Bank Scene index
-            oled12864.gfx.printf("%X", bankSceneIndex);
-
-            // Connection status
-            if (connectionState < 1)
+            oled12864.gfx.setTextSize(LABELSIZE_SM);
+            oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
             {
-              oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+              // Bank Scene index
+              oled12864.gfx.printf("%X", bankSceneIndex);
+
+              // Connection status
+              if (connectionState < 1)
+              {
+                oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+              }
             }
+            oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
           }
-          oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 
           // Label
           oled12864.gfx.setTextSize(LABELSIZE);
@@ -602,9 +606,9 @@ public:
     if (isDirty || num8Device.timing.isTick)
     {
       // (Numeric is not I2C; Clear is done in the draw)
-
-      num8.printBank(bankIndex, displayData.numeric);
-
+      {
+        num8.printBank(bankIndex, displayData.numeric);
+      }
       drawNum8Effects(bankIndex);
       // (Numeric is not I2C; Render is done in the draw)
     }

@@ -134,19 +134,30 @@ public:
 
   virtual void drawNum8Effects(uint8_t bankIndex)
   {
-    // bool isSelected = (index == bankSelectedIndex) && (bankSelectMode != BankSelectMode::Normal);
-    // bool isEdit = (bankSelectMode == BankSelectMode::Edit);
-    // bool isHighlight = highlightTimeout > timing.ms;
+    if (bankSelectMode == BankSelectMode::None)
+    {
+      drawNum8Blink(bankIndex, false);
+    }
+    else
+    {
+      drawNum8Highlight(bankIndex);
+    }
+  }
 
-    // Edit indicator
-    // if (isSelected && isEdit && !isHighlight)
-    // {
-    //   led24.blinkDisplay(true);
-    // }
-    // else
-    // {
-    //   led24.blinkDisplay(false);
-    // }
+  virtual void drawNum8Highlight(uint8_t bankIndex)
+  {
+    bool isSelected = (bankIndex == bankSelectedIndex) && (bankSelectMode != BankSelectMode::None);
+    bool isEdit = (bankSelectMode == BankSelectMode::Edit);
+    bool blink = isSelected && isEdit;
+
+    drawNum8Blink(bankIndex, blink);
+  }
+
+  virtual void drawNum8Blink(uint8_t bankIndex, bool blink)
+  {
+    float intensity = (blink && timing.isHz(2)) ? 0.f : num8.info.intensity;
+
+    num8.setIntensity(bankIndex, intensity);
   }
 };
 
