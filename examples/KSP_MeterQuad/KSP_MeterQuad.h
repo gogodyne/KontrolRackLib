@@ -3,18 +3,21 @@
 #define KSP_MeterQuad_h
 
 #include <Preferences.h>
+#include <nvs_flash.h>
 #include <KerbalSimpit.h>
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_LED24OLED12864.h>
 #include "KontrolRack_ESPWiFi.h"
 
+// Use this to CLEAR *ALL* NVS and freeze
+// #define PREFS_CLEAR
+
 using namespace KontrolRack;
 
-#define BANKSCENE_COUNT (4 + 1)
+#define BANKSCENE_COUNT (16)
 #define BANKSCENE_INDEX_KEY "bankSceneIndex"
 #define BANKSCENE_ROW_KEYFORMAT "row%d"
-#define BANKSCENE_INDEX_DEFAULT 1// skip EVA[0]
 
 ////////////////////////////////////////////////////////////////////////////////
 #define s_KSP_MeterQuad "KSP_MeterQuad"// max 15 characters
@@ -30,6 +33,7 @@ public:
   // Bank
   enum class BankDisplayMode : uint8_t
   {
+    // Do Not Reorder; used for settings
     OFF,
 
     LF,// liquid fuel
@@ -90,12 +94,12 @@ public:
     {"Xenon (stage)",       "Xe",     "STG"},
     {"Monopropellant",      "Mp",     ""},
     {"EVA Monopropellant",  "Ev",     "EVA"},
-    {"Intake Air",          "Ia",     ""},
-    {"Hydrogen",            "Hf",     ""},
-    {"Hydrogen (stage)",    "Hf",     "STG"},
-    {"Uranium",             "Uf",     ""},
+    {"Intake Air",          "In",     ""},
+    {"Hydrogen Fuel",       "Hf",     ""},
+    {"Hydrogen Fl (stage)", "Hf",     "STG"},
+    {"Uranium",             "Ur",     ""},
     {"Electric",            "El",     ""},
-    {"Ore",                 "Or",     ""},
+    {"Ore",                 "Ore",    ""},
     {"Ablator",             "Ab",     ""},
     {"Ablator (stage)",     "Ab",     "STG"},
     {"Food",                "Food",   ""},
@@ -104,14 +108,14 @@ public:
     {"Solid Waste",         "wSol",   ""},
     {"Liquid Waste",        "wLiq",   ""},
     {"Gas Waste",           "wGas",   ""},
-    {"Resource 1",          "R1",     ""},
-    {"Resource 2",          "R2",     ""},
-    {"Resource 3",          "R3",     ""},
-    {"Resource 4",          "R4",     ""},
-    {"Resource 5",          "R5",     ""},
-    {"Resource 6",          "R6",     ""},
-    {"Resource 7",          "R7",     ""},
-    {"Resource 8",          "R8",     ""},
+    {"Resource 1",          "Res1",   ""},
+    {"Resource 2",          "Res2",   ""},
+    {"Resource 3",          "Res3",   ""},
+    {"Resource 4",          "Res4",   ""},
+    {"Resource 5",          "Res5",   ""},
+    {"Resource 6",          "Res6",   ""},
+    {"Resource 7",          "Res7",   ""},
+    {"Resource 8",          "Res8",   ""},
   };
 
   // A preset group of Bank modes; one mode per Bank
@@ -121,13 +125,27 @@ public:
   };
   BankScene bankScenes[BANKSCENE_COUNT] =
   {
-    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::EV}},// EVA[0]
+    {{BankDisplayMode::LF_STAGE, BankDisplayMode::OX_STAGE, BankDisplayMode::SF_STAGE, BankDisplayMode::MP}},
     {{BankDisplayMode::LF, BankDisplayMode::OX, BankDisplayMode::SF, BankDisplayMode::MP}},
-    {{BankDisplayMode::LF_STAGE,BankDisplayMode::OX_STAGE, BankDisplayMode::SF_STAGE, BankDisplayMode::MP}},
-    {{BankDisplayMode::LF, BankDisplayMode::OX, BankDisplayMode::XE, BankDisplayMode::MP}},
-    {{BankDisplayMode::LF_STAGE, BankDisplayMode::OX_STAGE, BankDisplayMode::XE_STAGE, BankDisplayMode::MP}},
+    {{BankDisplayMode::LF_STAGE, BankDisplayMode::OX_STAGE, BankDisplayMode::EL, BankDisplayMode::MP}},
+    {{BankDisplayMode::LF, BankDisplayMode::OX, BankDisplayMode::EL, BankDisplayMode::MP}},
+
+    {{BankDisplayMode::OFF, BankDisplayMode::AB_STAGE, BankDisplayMode::EL, BankDisplayMode::MP}},
+    {{BankDisplayMode::OFF, BankDisplayMode::AB, BankDisplayMode::EL, BankDisplayMode::MP}},
+    {{BankDisplayMode::XE_STAGE, BankDisplayMode::OR, BankDisplayMode::EL, BankDisplayMode::MP}},
+    {{BankDisplayMode::XE, BankDisplayMode::OR, BankDisplayMode::EL, BankDisplayMode::MP}},
+
+    {{BankDisplayMode::LF_STAGE, BankDisplayMode::IA, BankDisplayMode::EL, BankDisplayMode::OFF}},
+    {{BankDisplayMode::LF, BankDisplayMode::IA, BankDisplayMode::EL, BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
+
+    {{BankDisplayMode::TR_FOOD, BankDisplayMode::TR_WATER, BankDisplayMode::TR_AIR, BankDisplayMode::OFF}},
+    {{BankDisplayMode::TW_WASTESOLID, BankDisplayMode::TW_WASTELIQUID, BankDisplayMode::TW_WASTEGAS, BankDisplayMode::OFF}},
+    {{BankDisplayMode::C1, BankDisplayMode::C2, BankDisplayMode::C3, BankDisplayMode::C4}},
+    {{BankDisplayMode::C5, BankDisplayMode::C6, BankDisplayMode::C7, BankDisplayMode::C8}},
   };
-  uint8_t bankSceneIndex = BANKSCENE_INDEX_DEFAULT;// Skip EVA[0]
+  uint8_t bankSceneIndex = 0;
 
   // Data for display
   struct DisplayData
@@ -308,7 +326,7 @@ public:
     }
     else
     {
-      bankSceneIndex = max(bankSceneIndex - 1, 1);// Skip EVA[0]
+      bankSceneIndex = max(bankSceneIndex - 1, 0);
     }
   }
 
@@ -317,6 +335,12 @@ public:
 
   virtual void prefsBegin()
   {
+#if defined(PREFS_CLEAR)
+    nvs_flash_erase();
+    nvs_flash_init();
+    while(true);
+#endif// defined(PREFS_CLEAR)
+
     preferences.begin(PREFS_Namespace);
     prefsLoad();
   }
@@ -331,7 +355,7 @@ public:
     // Selected Scene index
     {
       const char* key = BANKSCENE_INDEX_KEY;
-      uint8_t value = preferences.getUChar(key, BANKSCENE_INDEX_DEFAULT);
+      uint8_t value = preferences.getUChar(key, 0);
 
       if (load)
       {
@@ -679,7 +703,13 @@ public:
 
   virtual DisplayData makeDisplayData(uint8_t bankIndex)
   {
-    BankDisplayMode bankDisplayMode = flightStatusMsg.isInEVA() ? BankDisplayMode::EV : bankScenes[bankSceneIndex].modes[bankIndex];
+    BankDisplayMode bankDisplayMode = bankScenes[bankSceneIndex].modes[bankIndex];
+
+    // Show only EVA?
+    if (flightStatusMsg.isInEVA())
+    {
+      bankDisplayMode = (bankIndex == (bankCount - 1)) ? BankDisplayMode::EV : BankDisplayMode::OFF;
+    }
 
     switch (bankDisplayMode)
     {
@@ -812,23 +842,25 @@ public:
         {
           int16_t x1, y1;
           uint16_t w, h;
+          uint16_t margin = SSD1306::Size::Lg;
 
           // Label size
           oled12864.gfx.setTextSize(SSD1306::Size::Lg);
-          oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.getTextBounds("X", 0, 0, &x1, &y1, &w, &h);
+          uint16_t labelHeight = margin + h + margin;
 
           // Label frame
-          uint16_t labelHeight = SSD1306::Size::Lg + h + SSD1306::Size::Lg;
-          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, SSD1306::Size::Lg + SSD1306::Size::Lg, WHITE);
+          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, margin + margin, WHITE);
 
           // Label
-          oled12864.gfx.setTextSize(SSD1306::Size::Lg);
-          oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, SSD1306::Size::Lg);
+          oled12864.gfx.setTextSize((strlen(bankLabel.label) > 2) ? SSD1306::Size::Md : SSD1306::Size::Lg);
+          oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, margin);
           oled12864.gfx.print(bankLabel.label);
 
           // Indicators
           oled12864.gfx.setTextSize(SSD1306::Size::Sm);
-          oled12864.gfx.setCursor(SSD1306::Size::Lg, SSD1306::Size::Lg);
+          oled12864.gfx.setCursor(margin / 2, margin / 2);
           {
             // Info
             if (bankIndex == 0)
@@ -843,20 +875,21 @@ public:
                 {
                   oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
                 }
-                oled12864.gfx.println();
               }
               oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
             }
 
+            oled12864.gfx.println();
+
             // Indicator/Stage
-            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + SSD1306::Size::Lg, oled12864.gfx.getCursorY());
+            oled12864.gfx.setCursor(oled12864.gfx.getCursorX() + margin, oled12864.gfx.getCursorY() + margin / 2);
             if (bankLabel.sublabel && strlen(bankLabel.sublabel))
             {
               oled12864.gfx.print((timing.isHz(1) || timing.isHz(.5)) ? bankLabel.sublabel : "---");
             }
           }
 
-          oled12864.gfx.setCursor(SSD1306::Size::Lg, labelHeight + SSD1306::Size::Lg);
+          oled12864.gfx.setCursor(margin, labelHeight + margin);
           if (bankSelectMode == KR::BankSelectMode::None)
           {
             // Available/Total
@@ -878,7 +911,7 @@ public:
               }
               oled12864.gfx.setTextSize(SSD1306::Size::Sm);
               oled12864.gfx.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-              oled12864.gfx.setCursor(oled12864.gfx.width() - w - SSD1306::Size::Lg, labelHeight + SSD1306::Size::Lg);
+              oled12864.gfx.setCursor(oled12864.gfx.width() - w - margin, labelHeight + margin);
               oled12864.gfx.print(text);
             }
           }
@@ -917,6 +950,7 @@ public:
           }
         }
         else
+        if (displayData.bankDisplayMode != BankDisplayMode::OFF)
         {
           led24.setBar(0, LED_YELLOW);
         }

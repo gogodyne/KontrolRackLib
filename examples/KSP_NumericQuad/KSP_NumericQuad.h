@@ -11,11 +11,24 @@ KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will commu
 
 using namespace KontrolRack;
 
-#define BANKSCENE_COUNT (1)
+#define BANKSCENE_COUNT (16)
 #define BANKSCENE_INDEX_KEY "bankSceneIndex"
 #define BANKSCENE_ROW_KEYFORMAT "row%d"
 #define BANKDATA_VALUESIZE 32
 #define BANKSCENE_INDEX_DEFAULT 0
+
+namespace UnitNames
+{
+  const char* none = "";
+  const char* meters = "m";
+  const char* metersPerSecond = "m/s";
+  const char* seconds = "s";
+  const char* degrees = "deg";
+  const char* G = "G";
+  const char* Kelvin = "K";
+  const char* Mach = "M";
+  const char* Newtons = "N";
+}//namespace UnitNames
 
 ////////////////////////////////////////////////////////////////////////////////
 #define s_KSP_NumericQuad "KSP_NumericQuad"// max 15 characters
@@ -31,6 +44,7 @@ public:
   // Bank
   enum class BankDisplayMode : uint8_t
   {
+    // Do Not Reorder; used for settings
     OFF,
 
     // | Vessel Movement/Position |
@@ -67,13 +81,13 @@ public:
     OrbitMeanAnomaly,
     OrbitPeriod,
 
-    VesselPointingHeading,
-    VesselPointingPitch,
-    VesselPointingRoll,
-    VesselPointingOrbitalVelocityHeading,
-    VesselPointingOrbitalVelocityPitch,
-    VesselPointingSurfaceVelocityHeading,
-    VesselPointingSurfaceVelocityPitch,
+    OrientationHeading,
+    OrientationPitch,
+    OrientationRoll,
+    OrientationOrbitalVelocityHeading,
+    OrientationOrbitalVelocityPitch,
+    OrientationSurfaceVelocityHeading,
+    OrientationSurfaceVelocityPitch,
 
     // | External Environment |
 
@@ -93,7 +107,7 @@ public:
     IntersectsTimeToIntersect1,
     IntersectsDistanceAtIntersect2,
     IntersectsVelocityAtIntersect2,
-    IntersectsIimeToIntersect2,
+    IntersectsTimeToIntersect2,
 
     SIZE
   };
@@ -104,6 +118,7 @@ public:
     const char* label;
     const char* sublabel;
   };
+
   // Labels per mode
   const BankLabel bankLabels[(int)BankDisplayMode::SIZE] =
   {
@@ -120,12 +135,12 @@ public:
 
     {"Air Speed",           "AIS",  "Air Speed" },
     {"Mach Speed",          "Mch",  "Mach"      },
-    {"G-Forces",            "GF",   "G-Forces"  },
+    {"G-Forces",            "G-F",   "G-Forces"  },
 
-    {"Apoapsis Distance",   "Ap",   "Dstance to"},
-    {"Apoapsis Time",       "Ap",   "Time until"},
-    {"Periapsis Distance",  "Pe",   "Dstance to"},
-    {"Periapsis Time",      "Pe",   "Time until"},
+    {"Apoapsis Distance",   "Apo",   "Dstance to"},
+    {"Apoapsis Time",       "Apo",   "Time until"},
+    {"Periapsis Distance",  "Per",   "Dstance to"},
+    {"Periapsis Time",      "Per",   "Time until"},
 
     {"Maneuver Time Until", "Mnv",  "Time until"},
     {"Maneuver dV Next",    "Mnv",  "dV Next"   },
@@ -143,13 +158,13 @@ public:
     {"Orbit Mean Anomaly",  "Orb",  "Long Ascnd"},
     {"Orbit Period",        "Orb",  "Long Ascnd"},
 
-    {"Vessel Heading",      "Poi",  "Heading"   },
-    {"Vessel Pitch",        "Poi",  "Pitch"     },
-    {"Vessel Roll",         "Poi",  "Roll"      },
-    {"Orbital Vel Heading", "Poi",  "Orb Headng"},
-    {"Orbital Vel Pitch",   "Poi",  "Orb Pitch" },
-    {"Surface Vel Heading", "Poi",  "Surf Headg"},
-    {"Surface Vel Pitch",   "Poi",  "Surf Pitch"},
+    {"Vessel Heading",      "Ori",  "Heading"   },
+    {"Vessel Pitch",        "Ori",  "Pitch"     },
+    {"Vessel Roll",         "Ori",  "Roll"      },
+    {"Orbital Vel Heading", "Ori",  "Orb Headng"},
+    {"Orbital Vel Pitch",   "Ori",  "Orb Pitch" },
+    {"Surface Vel Heading", "Ori",  "Surf Headg"},
+    {"Surface Vel Pitch",   "Ori",  "Surf Pitch"},
 
     // | External Environment |
 
@@ -180,6 +195,24 @@ public:
   BankScene bankScenes[BANKSCENE_COUNT] =
   {
     {{BankDisplayMode::ApoapsisDistance, BankDisplayMode::ApoapsisTime, BankDisplayMode::PeriapsisDistance, BankDisplayMode::PeriapsisTime}},
+    {{BankDisplayMode::AltitudeSeaLevel, BankDisplayMode::AltitudeSurface, BankDisplayMode::VelocityOrbital, BankDisplayMode::VelocitySurface}},
+    {{BankDisplayMode::VelocityVertical, BankDisplayMode::AirspeedIAS, BankDisplayMode::AirspeedMach, BankDisplayMode::AirspeedGForces}},
+    {{BankDisplayMode::ManeuverTimeToNext, BankDisplayMode::ManeuverDeltaVNext, BankDisplayMode::ManeuverDurationNext, BankDisplayMode::ManeuverDeltaVTotal}},
+
+    {{BankDisplayMode::OrbitEccentricity, BankDisplayMode::OrbitSemiMajorAxis, BankDisplayMode::OrbitInclination, BankDisplayMode::OrbitLongAscendingNode}},
+    {{BankDisplayMode::OrbitArgPeriapsis, BankDisplayMode::OrbitTrueAnomaly, BankDisplayMode::OrbitMeanAnomaly, BankDisplayMode::OrbitPeriod}},
+    {{BankDisplayMode::OrientationHeading, BankDisplayMode::OrientationPitch, BankDisplayMode::OrientationRoll, BankDisplayMode::OFF}},
+    {{BankDisplayMode::OrientationOrbitalVelocityHeading, BankDisplayMode::OrientationOrbitalVelocityPitch, BankDisplayMode::OrientationSurfaceVelocityHeading, BankDisplayMode::OrientationSurfaceVelocityPitch}},
+
+    {{BankDisplayMode::TargetDistance, BankDisplayMode::TargetVelocity, BankDisplayMode::TargetHeading, BankDisplayMode::TargetPitch}},
+    {{BankDisplayMode::TargetDistance, BankDisplayMode::TargetVelocity, BankDisplayMode::TargetVelocityHeading, BankDisplayMode::TargetVelocityPitch}},
+    {{BankDisplayMode::AtmosphereAirDensity, BankDisplayMode::AtmosphereTemperature, BankDisplayMode::AtmospherePressure, BankDisplayMode::OFF}},
+    {{BankDisplayMode::IntersectsDistanceAtIntersect1, BankDisplayMode::IntersectsVelocityAtIntersect1, BankDisplayMode::IntersectsTimeToIntersect1, BankDisplayMode::OFF}},
+
+    {{BankDisplayMode::IntersectsDistanceAtIntersect2, BankDisplayMode::IntersectsVelocityAtIntersect2, BankDisplayMode::IntersectsTimeToIntersect2, BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
   };
   uint8_t bankSceneIndex = BANKSCENE_INDEX_DEFAULT;
 
@@ -197,10 +230,10 @@ public:
     : bankDisplayMode(bankDisplayMode)
     {}
 
-    DisplayData(BankDisplayMode bankDisplayMode, float data)
+    DisplayData(BankDisplayMode bankDisplayMode, float data, const char* unitsIn)
     : bankDisplayMode(bankDisplayMode)
     {
-      units = "m";
+      units = unitsIn;
 
       float dataScaled = data;
       float dataAbs = abs(data);
@@ -229,7 +262,7 @@ public:
     DisplayData(BankDisplayMode bankDisplayMode, int32_t seconds)
     : bankDisplayMode(bankDisplayMode)
     {
-      units = "s";
+      units = UnitNames::seconds;
       int32_t s = abs(seconds);
 
       int32_t d = s / 86400;//24*3600
@@ -626,40 +659,40 @@ public:
     // | Vessel Movement/Position |
 
     case BankDisplayMode::AltitudeSeaLevel:
-      return DisplayData(bankDisplayMode, altitudeMsg.sealevel);
+      return DisplayData(bankDisplayMode, altitudeMsg.sealevel, UnitNames::meters);
 
     case BankDisplayMode::AltitudeSurface:
-      return DisplayData(bankDisplayMode, altitudeMsg.surface);
+      return DisplayData(bankDisplayMode, altitudeMsg.surface, UnitNames::meters);
 
 
     case BankDisplayMode::VelocityOrbital:
-      return DisplayData(bankDisplayMode, velocityMsg.orbital);
+      return DisplayData(bankDisplayMode, velocityMsg.orbital, UnitNames::metersPerSecond);
 
     case BankDisplayMode::VelocitySurface:
-      return DisplayData(bankDisplayMode, velocityMsg.surface);
+      return DisplayData(bankDisplayMode, velocityMsg.surface, UnitNames::metersPerSecond);
 
     case BankDisplayMode::VelocityVertical:
-      return DisplayData(bankDisplayMode, velocityMsg.vertical);
+      return DisplayData(bankDisplayMode, velocityMsg.vertical, UnitNames::metersPerSecond);
 
 
     case BankDisplayMode::AirspeedIAS:
-      return DisplayData(bankDisplayMode, airspeedMsg.IAS);
+      return DisplayData(bankDisplayMode, airspeedMsg.IAS, UnitNames::metersPerSecond);
 
     case BankDisplayMode::AirspeedMach:
-      return DisplayData(bankDisplayMode, airspeedMsg.mach);
+      return DisplayData(bankDisplayMode, airspeedMsg.mach, UnitNames::Mach);
 
     case BankDisplayMode::AirspeedGForces:
-      return DisplayData(bankDisplayMode, airspeedMsg.gForces);
+      return DisplayData(bankDisplayMode, airspeedMsg.gForces, UnitNames::G);
 
 
     case BankDisplayMode::ApoapsisDistance:
-      return DisplayData(bankDisplayMode, apsidesMsg.apoapsis);
+      return DisplayData(bankDisplayMode, apsidesMsg.apoapsis, UnitNames::meters);
 
     case BankDisplayMode::ApoapsisTime:
       return DisplayData(bankDisplayMode, apsidesTimeMsg.apoapsis);
 
     case BankDisplayMode::PeriapsisDistance:
-      return DisplayData(bankDisplayMode, apsidesMsg.periapsis);
+      return DisplayData(bankDisplayMode, apsidesMsg.periapsis, UnitNames::meters);
 
     case BankDisplayMode::PeriapsisTime:
       return DisplayData(bankDisplayMode, apsidesTimeMsg.periapsis);
@@ -669,114 +702,114 @@ public:
       return DisplayData(bankDisplayMode, maneuverMsg.timeToNextManeuver);
 
     case BankDisplayMode::ManeuverDeltaVNext:
-      return DisplayData(bankDisplayMode, maneuverMsg.deltaVNextManeuver);
+      return DisplayData(bankDisplayMode, maneuverMsg.deltaVNextManeuver, UnitNames::metersPerSecond);
 
     case BankDisplayMode::ManeuverDurationNext:
       return DisplayData(bankDisplayMode, maneuverMsg.durationNextManeuver);
 
     case BankDisplayMode::ManeuverDeltaVTotal:
-      return DisplayData(bankDisplayMode, maneuverMsg.deltaVTotal);
+      return DisplayData(bankDisplayMode, maneuverMsg.deltaVTotal, UnitNames::metersPerSecond);
 
     case BankDisplayMode::ManeuverHeadingNext:
-      return DisplayData(bankDisplayMode, maneuverMsg.headingNextManeuver);
+      return DisplayData(bankDisplayMode, maneuverMsg.headingNextManeuver, UnitNames::degrees);
 
     case BankDisplayMode::ManeuverPitchNext:
-      return DisplayData(bankDisplayMode, maneuverMsg.pitchNextManeuver);
+      return DisplayData(bankDisplayMode, maneuverMsg.pitchNextManeuver, UnitNames::degrees);
 
 
     case BankDisplayMode::OrbitEccentricity:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.eccentricity);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.eccentricity, UnitNames::none);
 
     case BankDisplayMode::OrbitSemiMajorAxis:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.semiMajorAxis);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.semiMajorAxis, UnitNames::none);
 
     case BankDisplayMode::OrbitInclination:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.inclination);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.inclination, UnitNames::degrees);
 
     case BankDisplayMode::OrbitLongAscendingNode:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.longAscendingNode);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.longAscendingNode, UnitNames::meters);
 
     case BankDisplayMode::OrbitArgPeriapsis:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.argPeriapsis);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.argPeriapsis, UnitNames::none);
 
     case BankDisplayMode::OrbitTrueAnomaly:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.trueAnomaly);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.trueAnomaly, UnitNames::none);
 
     case BankDisplayMode::OrbitMeanAnomaly:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.meanAnomaly);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.meanAnomaly, UnitNames::none);
 
     case BankDisplayMode::OrbitPeriod:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.period);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.period, UnitNames::meters);
 
 
-    case BankDisplayMode::VesselPointingHeading:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.heading);
+    case BankDisplayMode::OrientationHeading:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.heading, UnitNames::degrees);
 
-    case BankDisplayMode::VesselPointingPitch:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.pitch);
+    case BankDisplayMode::OrientationPitch:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.pitch, UnitNames::degrees);
 
-    case BankDisplayMode::VesselPointingRoll:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.roll);
+    case BankDisplayMode::OrientationRoll:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.roll, UnitNames::degrees);
 
-    case BankDisplayMode::VesselPointingOrbitalVelocityHeading:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.orbitalVelocityHeading);
+    case BankDisplayMode::OrientationOrbitalVelocityHeading:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.orbitalVelocityHeading, UnitNames::degrees);
 
-    case BankDisplayMode::VesselPointingOrbitalVelocityPitch:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.orbitalVelocityPitch);
+    case BankDisplayMode::OrientationOrbitalVelocityPitch:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.orbitalVelocityPitch, UnitNames::degrees);
 
-    case BankDisplayMode::VesselPointingSurfaceVelocityHeading:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.surfaceVelocityHeading);
+    case BankDisplayMode::OrientationSurfaceVelocityHeading:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.surfaceVelocityHeading, UnitNames::degrees);
 
-    case BankDisplayMode::VesselPointingSurfaceVelocityPitch:
-      return DisplayData(bankDisplayMode, vesselPointingMsg.surfaceVelocityPitch);
+    case BankDisplayMode::OrientationSurfaceVelocityPitch:
+      return DisplayData(bankDisplayMode, vesselPointingMsg.surfaceVelocityPitch, UnitNames::degrees);
 
     // | External Environment |
 
     case BankDisplayMode::TargetDistance:
-      return DisplayData(bankDisplayMode, targetMsg.distance);
+      return DisplayData(bankDisplayMode, targetMsg.distance, UnitNames::meters);
 
     case BankDisplayMode::TargetVelocity:
-      return DisplayData(bankDisplayMode, targetMsg.velocity);
+      return DisplayData(bankDisplayMode, targetMsg.velocity, UnitNames::metersPerSecond);
 
     case BankDisplayMode::TargetHeading:
-      return DisplayData(bankDisplayMode, targetMsg.heading);
+      return DisplayData(bankDisplayMode, targetMsg.heading, UnitNames::degrees);
 
     case BankDisplayMode::TargetPitch:
-      return DisplayData(bankDisplayMode, targetMsg.pitch);
+      return DisplayData(bankDisplayMode, targetMsg.pitch, UnitNames::degrees);
 
     case BankDisplayMode::TargetVelocityHeading:
-      return DisplayData(bankDisplayMode, targetMsg.velocityHeading);
+      return DisplayData(bankDisplayMode, targetMsg.velocityHeading, UnitNames::degrees);
 
     case BankDisplayMode::TargetVelocityPitch:
-      return DisplayData(bankDisplayMode, targetMsg.velocityPitch);
+      return DisplayData(bankDisplayMode, targetMsg.velocityPitch, UnitNames::degrees);
 
 
     case BankDisplayMode::AtmosphereAirDensity:
-      return DisplayData(bankDisplayMode, atmoConditionsMsg.airDensity);
+      return DisplayData(bankDisplayMode, atmoConditionsMsg.airDensity, UnitNames::none);
 
     case BankDisplayMode::AtmosphereTemperature:
-      return DisplayData(bankDisplayMode, atmoConditionsMsg.temperature);
+      return DisplayData(bankDisplayMode, atmoConditionsMsg.temperature, UnitNames::Kelvin);
 
     case BankDisplayMode::AtmospherePressure:
-      return DisplayData(bankDisplayMode, atmoConditionsMsg.pressure);
+      return DisplayData(bankDisplayMode, atmoConditionsMsg.pressure, UnitNames::Newtons);
 
 
     case BankDisplayMode::IntersectsDistanceAtIntersect1:
-      return DisplayData(bankDisplayMode, intersectsMsg.distanceAtIntersect1);
+      return DisplayData(bankDisplayMode, intersectsMsg.distanceAtIntersect1, UnitNames::meters);
 
     case BankDisplayMode::IntersectsVelocityAtIntersect1:
-      return DisplayData(bankDisplayMode, intersectsMsg.velocityAtIntersect1);
+      return DisplayData(bankDisplayMode, intersectsMsg.velocityAtIntersect1, UnitNames::metersPerSecond);
 
     case BankDisplayMode::IntersectsTimeToIntersect1:
       return DisplayData(bankDisplayMode, intersectsMsg.timeToIntersect1);
 
     case BankDisplayMode::IntersectsDistanceAtIntersect2:
-      return DisplayData(bankDisplayMode, intersectsMsg.distanceAtIntersect2);
+      return DisplayData(bankDisplayMode, intersectsMsg.distanceAtIntersect2, UnitNames::meters);
 
     case BankDisplayMode::IntersectsVelocityAtIntersect2:
-      return DisplayData(bankDisplayMode, intersectsMsg.velocityAtIntersect2);
+      return DisplayData(bankDisplayMode, intersectsMsg.velocityAtIntersect2, UnitNames::metersPerSecond);
 
-    case BankDisplayMode::IntersectsIimeToIntersect2:
+    case BankDisplayMode::IntersectsTimeToIntersect2:
       return DisplayData(bankDisplayMode, intersectsMsg.timeToIntersect2);
     }
 
@@ -807,45 +840,55 @@ public:
         {
           int16_t x1, y1;
           uint16_t w, h;
+          uint16_t margin = SSD1306::Size::Lg;
 
           // Label size
           oled12864.gfx.setTextSize(SSD1306::Size::Lg);
-          oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.getTextBounds("X", 0, 0, &x1, &y1, &w, &h);
+          uint16_t labelHeight = margin + h + margin;
 
           // Label frame
-          uint16_t labelHeight = SSD1306::Size::Lg + h + SSD1306::Size::Lg;
-          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, SSD1306::Size::Lg + SSD1306::Size::Lg, WHITE);
+          oled12864.gfx.drawRoundRect(1, 1, oled12864.gfx.width() - 2, labelHeight - 2, margin + margin, WHITE);
 
           // Scale and Units
-          oled12864.gfx.setTextSize(SSD1306::Size::Lg);
-          oled12864.gfx.setCursor(SSD1306::Size::Lg, SSD1306::Size::Lg);
+          oled12864.gfx.setTextSize(((strlen(displayData.scale) + strlen(displayData.units)) > 2) ? SSD1306::Size::Md : SSD1306::Size::Lg);
+          oled12864.gfx.setCursor(margin, margin);
           oled12864.gfx.print(displayData.scale);
           oled12864.gfx.print(displayData.units);
 
           // Info
-          if (bankIndex == 0)
+          if ((bankIndex == 0) || (bankIndex == 1))
           {
             oled12864.gfx.setTextSize(SSD1306::Size::Sm);
+            oled12864.gfx.getTextBounds("X", 0, 0, &x1, &y1, &w, &h);
+            oled12864.gfx.setCursor((oled12864.gfx.width() - w) / 2, labelHeight - h + margin);
             oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
             {
-              // Bank Scene index
-              oled12864.gfx.printf("%X", bankSceneIndex);
-
-              // Connection status
-              if (connectionState < 1)
+              if (bankIndex == 0)
               {
-                oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+                // Bank Scene index
+                oled12864.gfx.printf("%X", bankSceneIndex);
+              }
+              else
+              if (bankIndex == 1)
+              {
+                // Connection status
+                if (connectionState < 1)
+                {
+                  oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+                }
               }
             }
             oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
           }
 
           // Label
-          oled12864.gfx.setTextSize(SSD1306::Size::Lg);
-          oled12864.gfx.setCursor(oled12864.gfx.width() - w - SSD1306::Size::Lg, SSD1306::Size::Lg);
+          oled12864.gfx.setTextSize((strlen(bankLabel.label) > 2) ? SSD1306::Size::Md : SSD1306::Size::Lg);
+          oled12864.gfx.getTextBounds(bankLabel.label, 0, 0, &x1, &y1, &w, &h);
+          oled12864.gfx.setCursor(oled12864.gfx.width() - w - margin, margin);
           oled12864.gfx.printf(bankLabel.label);
 
-          oled12864.gfx.setCursor(SSD1306::Size::Lg, labelHeight + SSD1306::Size::Lg);
+          oled12864.gfx.setCursor(margin, labelHeight + margin);
           if (bankSelectMode == KR::BankSelectMode::None)
           {
             // Sublabel
