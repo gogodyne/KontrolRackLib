@@ -32,9 +32,13 @@
 
 // OLED
 #define OLED12864_ADDRESS 0x3C
+#define OLED12864_FPS     12
 
 // LED24
+#define LED24_FPS         8
 #define LED24_Brightness  2//[0-15]
 #define LED24_ADDRESS     (AdafruitBargraph_Address + 0)
+
+#define MODULE_FPS        12
 
 #endif// KSP_Settings_h

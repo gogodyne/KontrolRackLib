@@ -232,11 +232,11 @@ public:
     for (int i = 0; i < getBankCount(); ++i)
     {
       // Start the devices
-      led24Devices[i].begin(12);
-      oled12864Devices[i].begin(12);
+      led24Devices[i].begin(LED24_FPS);
+      oled12864Devices[i].begin(OLED12864_FPS);
     }
 
-    Parent::begin(12, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24::Info(LED24_ADDRESS, &wire, LED24_Brightness), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    Parent::begin(MODULE_FPS, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24::Info(LED24_ADDRESS, &wire, LED24_Brightness), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
     net.begin();
   }
 

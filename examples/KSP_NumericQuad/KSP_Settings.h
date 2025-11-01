@@ -34,6 +34,7 @@
 #define OLED12864_ADDRESS 0x3C
 
 // Numeric
+#define NUM8_FPS        12
 #define NUM8_INTENSITY  .1f
 #if defined(ARDUINO_XIAO_ESP32C3)
 #define NUM8_DIN  10
@@ -49,6 +50,6 @@
 #endif// defined(board)
 #endif// defined(NUM8_DIN)
 
-#define LEVEL_RANGE 11
+#define MODULE_FPS 12
 
 #endif// KSP_Settings_h

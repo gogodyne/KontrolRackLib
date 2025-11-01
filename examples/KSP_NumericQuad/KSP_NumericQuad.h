@@ -308,15 +308,15 @@ public:
     mySimpitHandler = messageHandler;
 
     // Start the devices
-    num8Device.begin(12);
+    num8Device.begin(NUM8_FPS);
 
     for (int i = 0; i < getBankCount(); ++i)
     {
       // Start the devices
-      oled12864Devices[i].begin(12);
+      oled12864Devices[i].begin(OLED12864_FPS);
     }
 
-    Parent::begin(12, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+    Parent::begin(MODULE_FPS, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
     net.begin();
   }
 
