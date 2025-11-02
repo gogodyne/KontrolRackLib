@@ -7,7 +7,7 @@
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_Num8OLED12864.h>
-#include "KontrolRack_ESPWiFi.h"
+#include <KontrolRack_ESPWiFi.h>
 
 using namespace KontrolRack;
 
