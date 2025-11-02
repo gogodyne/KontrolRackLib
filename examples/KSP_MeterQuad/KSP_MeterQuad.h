@@ -82,7 +82,7 @@ public:
   // Labels per mode
   const BankLabel bankLabels[(int)BankDisplayMode::SIZE] =
   {
-    {"(off)",               "--",     ""},
+    {"(off)",               "",     ""},
 
     {"Liquid Fuel",         "Lf",     ""},
     {"Liquid Fuel (stage)", "Lf",     "STG"},
@@ -215,8 +215,18 @@ public:
   flightStatusMessage flightStatusMsg;
 
   // Connection
-  int connectionState = 0;
+  enum ConnectionState
+  {
+    Disconnected = -1,
+    Connecting = 0,
+    ConnectedKSP = 1,
+    ConnectedKSP2 = 2,
+  };
+  int connectionState = ConnectionState::Connecting;
   unsigned long heartbeatNextMs = 0;
+
+  timing_t longPressMs = 0;
+  bool isLongPress = false;
 
   KSP_MeterQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -249,8 +259,11 @@ public:
     switch (bankSelectMode)
     {
     case KR::BankSelectMode::None:
-      if (encBtn.didPress())
+      if (encBtn.didRelease() && !isLongPress)
       {
+        Serial.println();
+        Serial.print(longPressMs);
+        Serial.println();
         setBankSelectMode(KR::BankSelectMode::Select);
       }
       if (encBtn.didChangeEnc())
@@ -260,7 +273,7 @@ public:
       break;
 
     case KR::BankSelectMode::Select:
-      if (encBtn.didPress())
+      if (encBtn.didRelease())
       {
         setBankSelectMode(KR::BankSelectMode::Edit);
       }
@@ -271,7 +284,7 @@ public:
       break;
 
     case KR::BankSelectMode::Edit:
-      if (encBtn.didPress())
+      if (encBtn.didRelease())
       {
         setBankSelectMode(KR::BankSelectMode::Select);
       }
@@ -280,6 +293,34 @@ public:
         cycleBankDisplayMode(encBtn.didIncrease());
       }
       break;
+    }
+
+    // Long button press
+    bool wasLongPress = isLongPress;
+    if (encBtn.isPress())
+    {
+      if (longPressMs == 0)
+      {
+        longPressMs = timing.ms;
+      }
+      else
+      {
+        isLongPress = (timing.ms - longPressMs) > 3000;
+      }
+    }
+    else
+    {
+      longPressMs = 0;
+      isLongPress = false;
+    }
+
+    // Connect toggle
+    if (!isConnected())
+    {
+      if (isLongPress && !wasLongPress)
+      {
+        connectionState = isConnecting() ? ConnectionState::Disconnected : ConnectionState::Connecting;
+      }
     }
 
     heartbeat();
@@ -408,27 +449,32 @@ public:
   //------------------------------------------------------------------------------
   // Connection
 
+  virtual bool isConnected()
+  {
+    return connectionState > 0;
+  }
+
+  virtual bool isConnecting()
+  {
+    return connectionState == ConnectionState::Connecting;
+  }
+
   virtual int heartbeat()
   {
     const int HeartbeatInterval = 5000;
-    unsigned long ms = millis();
 
     // Ping
-    if (ms >= heartbeatNextMs)
+    if (timing.ms >= heartbeatNextMs)
     {
-      heartbeatNextMs = ms + HeartbeatInterval;
-      char buf[48] = {0};
-      snprintf(buf, 48, "'%s' PING\n", net.hostName);
-      // mySimpit.send(ECHO_REQ_MESSAGE, buf, strlen(buf) + 1);
+      heartbeatNextMs = timing.ms + HeartbeatInterval;
+
+      mySimpit.send(ECHO_REQ_MESSAGE, net.hostName, strlen(net.hostName) + 1);
     }
 
     // Connect
-    static unsigned long tryConnectMs = 0;
-    if ((connectionState == 0) && (ms >= tryConnectMs))
+    if (isConnecting())
     {
-      tryConnectMs = ms + HeartbeatInterval;
-      // connectionState = mySimpit.init();
-      if (connectionState)
+      if (mySimpit.init())
       {
         onConnect();
       }
@@ -439,7 +485,7 @@ public:
 
   virtual void onConnect()
   {
-    connectionState += mySimpit.connectedToKSP2();
+    connectionState = mySimpit.connectedToKSP2() ? ConnectionState::ConnectedKSP2 : ConnectionState::ConnectedKSP;
 
     mySimpit.inboundHandler(mySimpitHandler);
 
@@ -479,8 +525,10 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
-        connectionState = 1;
-        onConnect();
+        if (!isConnected())
+        {
+          onConnect();
+        }
       }
       break;
 
@@ -873,7 +921,7 @@ public:
                 // Connection status
                 if (connectionState < 1)
                 {
-                  oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+                  oled12864.gfx.print(isConnecting() ? (timing.isHz(2) ? "/" : "\\") : "!");
                 }
               }
               oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);

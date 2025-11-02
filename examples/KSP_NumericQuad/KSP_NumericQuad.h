@@ -122,7 +122,7 @@ public:
   // Labels per mode
   const BankLabel bankLabels[(int)BankDisplayMode::SIZE] =
   {
-    {"(off)",               "--", ""},
+    {"(off)",               "", ""},
 
     // | Vessel Movement/Position |
 
@@ -135,12 +135,12 @@ public:
 
     {"Air Speed",           "AIS",  "Air Speed" },
     {"Mach Speed",          "Mch",  "Mach"      },
-    {"G-Forces",            "G-F",   "G-Forces"  },
+    {"G-Forces",            "G-F",  "G-Forces"  },
 
-    {"Apoapsis Distance",   "Apo",   "Dstance to"},
-    {"Apoapsis Time",       "Apo",   "Time until"},
-    {"Periapsis Distance",  "Per",   "Dstance to"},
-    {"Periapsis Time",      "Per",   "Time until"},
+    {"Apoapsis Distance",   "Apo",  "Dstance to"},
+    {"Apoapsis Time",       "Apo",  "Time until"},
+    {"Periapsis Distance",  "Per",  "Dstance to"},
+    {"Periapsis Time",      "Per",  "Time until"},
 
     {"Maneuver Time Until", "Mnv",  "Time until"},
     {"Maneuver dV Next",    "Mnv",  "dV Next"   },
@@ -154,9 +154,9 @@ public:
     {"Orbit Inclination",   "Orb",  "Inclnation"},
     {"Orbit Long Ascend",   "Orb",  "Long Ascnd"},
     {"Orbit Arg Periapsis", "Orb",  "Arg Peri"  },
-    {"Orbit True Anomaly",  "Orb",  "Long Ascnd"},
-    {"Orbit Mean Anomaly",  "Orb",  "Long Ascnd"},
-    {"Orbit Period",        "Orb",  "Long Ascnd"},
+    {"Orbit True Anomaly",  "Orb",  "True Anom" },
+    {"Orbit Mean Anomaly",  "Orb",  "Mean Anom" },
+    {"Orbit Period",        "Orb",  "Period"    },
 
     {"Vessel Heading",      "Ori",  "Heading"   },
     {"Vessel Pitch",        "Ori",  "Pitch"     },
@@ -292,9 +292,19 @@ public:
   atmoConditionsMessage atmoConditionsMsg;
   intersectsMessage intersectsMsg;
 
-  // Connection.
-  int connectionState = 0;
+  // Connection
+  enum ConnectionState
+  {
+    Disconnected = -1,
+    Connecting = 0,
+    ConnectedKSP = 1,
+    ConnectedKSP2 = 2,
+  };
+  int connectionState = ConnectionState::Connecting;
   unsigned long heartbeatNextMs = 0;
+
+  timing_t longPressMs = 0;
+  bool isLongPress = false;
 
   KSP_NumericQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -329,7 +339,7 @@ public:
     switch (bankSelectMode)
     {
     case KR::BankSelectMode::None:
-      if (encBtn.didPress())
+      if (encBtn.didRelease() && !isLongPress)
       {
         setBankSelectMode(KR::BankSelectMode::Select);
       }
@@ -340,7 +350,7 @@ public:
       break;
 
     case KR::BankSelectMode::Select:
-      if (encBtn.didPress())
+      if (encBtn.didRelease())
       {
         setBankSelectMode(KR::BankSelectMode::Edit);
       }
@@ -351,7 +361,7 @@ public:
       break;
 
     case KR::BankSelectMode::Edit:
-      if (encBtn.didPress())
+      if (encBtn.didRelease())
       {
         setBankSelectMode(KR::BankSelectMode::Select);
       }
@@ -360,6 +370,34 @@ public:
         cycleBankDisplayMode(encBtn.didIncrease());
       }
       break;
+    }
+
+    // Long button press
+    bool wasLongPress = isLongPress;
+    if (encBtn.isPress())
+    {
+      if (longPressMs == 0)
+      {
+        longPressMs = timing.ms;
+      }
+      else
+      {
+        isLongPress = (timing.ms - longPressMs) > 3000;
+      }
+    }
+    else
+    {
+      longPressMs = 0;
+      isLongPress = false;
+    }
+
+    // Connect toggle
+    if (!isConnected())
+    {
+      if (isLongPress && !wasLongPress)
+      {
+        connectionState = isConnecting() ? ConnectionState::Disconnected : ConnectionState::Connecting;
+      }
     }
 
     heartbeat();
@@ -482,27 +520,32 @@ public:
   //------------------------------------------------------------------------------
   // Connection
 
+  virtual bool isConnected()
+  {
+    return connectionState > 0;
+  }
+
+  virtual bool isConnecting()
+  {
+    return connectionState == ConnectionState::Connecting;
+  }
+
   virtual int heartbeat()
   {
     const int HeartbeatInterval = 5000;
-    unsigned long ms = millis();
 
     // Ping
-    if (ms >= heartbeatNextMs)
+    if (timing.ms >= heartbeatNextMs)
     {
-      heartbeatNextMs = ms + HeartbeatInterval;
-      char buf[48] = {0};
-      snprintf(buf, 48, "'%s' PING\n", net.hostName);
-      // mySimpit.send(ECHO_REQ_MESSAGE, buf, strlen(buf) + 1);
+      heartbeatNextMs = timing.ms + HeartbeatInterval;
+
+      mySimpit.send(ECHO_REQ_MESSAGE, net.hostName, strlen(net.hostName) + 1);
     }
 
     // Connect
-    static unsigned long tryConnectMs = 0;
-    if ((connectionState == 0) && (ms >= tryConnectMs))
+    if (isConnecting())
     {
-      tryConnectMs = ms + HeartbeatInterval;
-      // connectionState = mySimpit.init();
-      if (connectionState)
+      if (mySimpit.init())
       {
         onConnect();
       }
@@ -513,7 +556,7 @@ public:
 
   virtual void onConnect()
   {
-    connectionState += mySimpit.connectedToKSP2();
+    connectionState = mySimpit.connectedToKSP2() ? ConnectionState::ConnectedKSP2 : ConnectionState::ConnectedKSP;
 
     mySimpit.inboundHandler(mySimpitHandler);
 
@@ -538,8 +581,10 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
-        connectionState = 1;
-        onConnect();
+        if (!isConnected())
+        {
+          onConnect();
+        }
       }
       break;
 
@@ -721,7 +766,7 @@ public:
       return DisplayData(bankDisplayMode, orbitInfoMsg.eccentricity, UnitNames::none);
 
     case BankDisplayMode::OrbitSemiMajorAxis:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.semiMajorAxis, UnitNames::none);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.semiMajorAxis, UnitNames::meters);
 
     case BankDisplayMode::OrbitInclination:
       return DisplayData(bankDisplayMode, orbitInfoMsg.inclination, UnitNames::degrees);
@@ -730,16 +775,16 @@ public:
       return DisplayData(bankDisplayMode, orbitInfoMsg.longAscendingNode, UnitNames::meters);
 
     case BankDisplayMode::OrbitArgPeriapsis:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.argPeriapsis, UnitNames::none);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.argPeriapsis, UnitNames::degrees);
 
     case BankDisplayMode::OrbitTrueAnomaly:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.trueAnomaly, UnitNames::none);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.trueAnomaly, UnitNames::degrees);
 
     case BankDisplayMode::OrbitMeanAnomaly:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.meanAnomaly, UnitNames::none);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.meanAnomaly, UnitNames::degrees);
 
     case BankDisplayMode::OrbitPeriod:
-      return DisplayData(bankDisplayMode, orbitInfoMsg.period, UnitNames::meters);
+      return DisplayData(bankDisplayMode, orbitInfoMsg.period);
 
 
     case BankDisplayMode::OrientationHeading:
@@ -868,14 +913,11 @@ public:
               {
                 // Bank Scene index
                 oled12864.gfx.printf("%X", bankSceneIndex);
-              }
-              else
-              if (bankIndex == 1)
-              {
+
                 // Connection status
                 if (connectionState < 1)
                 {
-                  oled12864.gfx.print((connectionState < 0) ? "*" : timing.isHz(2) ? "/" : "\\");
+                  oled12864.gfx.print(isConnecting() ? (timing.isHz(2) ? "/" : "\\") : "!");
                 }
               }
             }
