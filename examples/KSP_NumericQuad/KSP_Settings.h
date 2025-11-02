@@ -32,6 +32,7 @@
 
 // OLED
 #define OLED12864_ADDRESS 0x3C
+#define OLED12864_FPS     12
 
 // Numeric
 #define NUM8_FPS        12
