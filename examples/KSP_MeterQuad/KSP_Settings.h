@@ -2,6 +2,8 @@
 #ifndef KSP_Settings_h
 #define KSP_Settings_h
 
+#define APP_TITLE "KSP Meter Quad"
+
 // Encoder
 #define ROTENC_PositionCount 20
 #if !defined(ROTENC_A)

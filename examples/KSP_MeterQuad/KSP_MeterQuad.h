@@ -8,7 +8,7 @@
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_LED24OLED12864.h>
-#include <KontrolRack_ESPWiFi.h>
+#include "KSP_MeterQuadWeb.h"
 
 // Use this to CLEAR *ALL* NVS and freeze
 // #define PREFS_CLEAR
@@ -27,8 +27,36 @@ class KSP_MeterQuad : public KR::Meter24Quad
 public:
   using Parent = KR::Meter24Quad;
 
-  Preferences preferences;
-  ESPWiFi net;
+  //------------------------------------------------------------------------------
+  struct Menu
+  {
+    enum struct Mode      { Off, Cfg };
+    enum struct Cfg       { Done, Connect, Web, SIZE };
+
+    Mode mode = Mode::Off;
+    Cfg cfg = Cfg::Done;
+
+    bool isOff() const
+    {
+      return mode == Mode::Off;
+    }
+
+    bool isCfg(Cfg other) const
+    {
+      return mode == Mode::Cfg && cfg == other;
+    }
+
+    void setOff()
+    {
+      mode = Mode::Off;
+    }
+
+    void setCfg(Cfg other)
+    {
+      mode = Mode::Cfg;
+      cfg = other;
+    }
+  };
 
   // Bank
   enum class BankDisplayMode : uint8_t
@@ -145,7 +173,6 @@ public:
     {{BankDisplayMode::C1, BankDisplayMode::C2, BankDisplayMode::C3, BankDisplayMode::C4}},
     {{BankDisplayMode::C5, BankDisplayMode::C6, BankDisplayMode::C7, BankDisplayMode::C8}},
   };
-  uint8_t bankSceneIndex = 0;
 
   // Data for display
   struct DisplayData
@@ -182,6 +209,10 @@ public:
     : DisplayData(bankDisplayMode, message.total, message.available)
     {}
   };
+
+  Menu menu;
+  Preferences preferences;
+  uint8_t bankSceneIndex = 0;
 
   // KSP Messages
   void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
@@ -225,8 +256,12 @@ public:
   int connectionState = ConnectionState::Connecting;
   unsigned long heartbeatNextMs = 0;
 
+  // Long-press
   timing_t longPressMs = 0;
   bool isLongPress = false;
+
+  // Web
+  KSP_MeterQuadWeb web;
 
   KSP_MeterQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -247,13 +282,11 @@ public:
     }
 
     Parent::begin(MODULE_FPS, false, SWITCH_ADDRESS_METER, OLED12864_ADDRESS, LED24::Info(LED24_ADDRESS, &wire, LED24_Brightness), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
-    net.begin();
   }
 
   virtual void loop() override
   {
     Parent::loop();
-    net.loop();
 
     // Input
     switch (bankSelectMode)
@@ -261,9 +294,6 @@ public:
     case KR::BankSelectMode::None:
       if (encBtn.didRelease() && !isLongPress)
       {
-        Serial.println();
-        Serial.print(longPressMs);
-        Serial.println();
         setBankSelectMode(KR::BankSelectMode::Select);
       }
       if (encBtn.didChangeEnc())
@@ -315,11 +345,20 @@ public:
     }
 
     // Connect toggle
-    if (!isConnected())
+    // if (!isConnected())
+    // {
+    //   if (isLongPress && !wasLongPress)
+    //   {
+    //     connectionState = isConnecting() ? ConnectionState::Disconnected : ConnectionState::Connecting;
+    //   }
+    // }
+
+    // Menu
+    if (menu.isOff())
     {
       if (isLongPress && !wasLongPress)
       {
-        connectionState = isConnecting() ? ConnectionState::Disconnected : ConnectionState::Connecting;
+        menu.setCfg(Menu::Cfg::Done);
       }
     }
 
@@ -468,7 +507,7 @@ public:
     {
       heartbeatNextMs = timing.ms + HeartbeatInterval;
 
-      mySimpit.send(ECHO_REQ_MESSAGE, net.hostName, strlen(net.hostName) + 1);
+      mySimpit.send(ECHO_REQ_MESSAGE, web.net.hostName, strlen(web.net.hostName) + 1);
     }
 
     // Connect
@@ -874,6 +913,29 @@ public:
     return oled12864Devices[bankIndex].timing.isTick || led24Devices[bankIndex].timing.isTick;
   }
 
+  virtual void drawMenu()
+  {
+    oled12864.gfx.setTextSize(SSD1306::Size::Sm);
+    oled12864.gfx.setCursor(0, 0);
+    switch (menuMode)
+    {
+    case Menu::Mode::Cfg:
+      {
+        drawMenuItem("Done", menu.isCfg(Menu::Cfg::Done));
+        drawMenuItem("Stop Connecting", menu.isCfg(Menu::Cfg::Connect));
+        drawMenuItem("Start Web", menu.isCfg(Menu::Cfg::Web));
+      }
+      break;
+    }
+  }
+
+  virtual void drawMenuItem(int itemIndex, const char* itemLabel, bool newline = true)
+  {
+    oled12864.gfx.print(itemLabel);
+    if (newline)
+      oled12864.gfx.println();
+  }
+
   virtual void drawBank(uint8_t bankIndex, bool isDirty) override
   {
     Parent::drawBank(bankIndex, isDirty);
@@ -886,6 +948,14 @@ public:
     {
       oled12864.clear();
       {
+        if (!isMenuMode(Menu::Mode::Off))
+        {
+          if (bankIndex == 0)
+          {
+            drawMenu();
+          }
+        }
+        else
         if (bankLabel.label)
         {
           int16_t x1, y1;
