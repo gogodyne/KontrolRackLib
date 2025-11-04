@@ -1,0 +1,361 @@
+/* (c) gogo */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+
+.croppr-handle {
+  border: 4pt solid yellow;
+  border-radius: 12pt;
+  background-color: white;
+  width: 24pt;
+  height: 24pt;
+}
+
+
+html {
+  font-size: 12pt;
+	font-family: sans-serif;
+	font-weight: 600;
+}
+body {
+  margin: 0;
+	background-color: lightseagreen;
+	color: white;
+  background-size: 8pt 8pt;
+  background-image: repeating-linear-gradient(to right,lightseagreen,lightseagreen 2pt,teal 2pt,teal);
+}
+a {
+	color: white;
+}
+input[type=button], input[type=file], input[type=text] {
+	border: 4pt solid white;
+	color: #222;
+  padding-left: 6pt;
+  padding-right: 6pt;
+}
+input[type=button] {
+  background-color: white;
+  border-color: lightgray;
+  color: black;
+  font-weight: 400;
+  text-shadow: 0 0 1.5pt slategray;
+  box-shadow: 2pt 2pt gray, 0 0 12pt white;
+  position: relative;
+  top: -4pt;
+  left: -4pt;
+  cursor: pointer;
+}
+input[type=file] {
+  cursor: pointer;
+  padding-top: .5em;
+}
+input[type=file], input[type=text] {
+  background-color: darkgray;
+  height: 20pt;
+  font-size: 10pt;
+  font-family: "Press Start 2P", monospace;
+  text-shadow: 1pt 1pt .5pt gray;
+  box-shadow: 2pt 2pt black inset, 0 0 14pt moccasin inset;
+}
+input[type=button][disabled] {
+  background-color: gray;
+  box-shadow: 2pt 2pt gray;
+}
+input[type=file]:read-only, input[type=text]:read-only {
+  background-color: slategray;
+  box-shadow: 2pt 2pt black inset, 0 0 14pt moccasin inset;
+}
+input[type=file][disabled], input[type=text][disabled] {
+  background-color: gray;
+  box-shadow: 2pt 2pt black inset;
+}
+img {
+}
+::selection {
+  background-color: darkorange;
+  outline: 2pt solid darkorange;
+}
+
+.flexRow {
+  display: flex;
+  flex-direction: row;
+}
+.flexCol {
+  display: flex;
+  flex-direction: column;
+}
+.column {
+  margin: 12pt;
+  padding: 8pt;
+  border-radius: 24pt;
+  box-shadow: 6pt 6pt black;
+}
+.pane {
+  margin: 8pt;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 0;
+  box-shadow: 0 0 0 2.5pt white inset;
+}
+.squared {
+  border: 5pt solid white;
+}
+.rounded {
+  border: 5pt solid white;
+  border-radius: 16pt;
+}
+.rounded.left {
+  border-radius: 12pt 0 0 12pt;
+}
+.rounded.right {
+  border-radius: 0 12pt 12pt 0;
+}
+.lcd {
+  box-shadow: 3pt 3pt black inset, 0 0 20pt moccasin inset;
+  padding: 12pt 12pt 6pt 12pt;
+  background-color: darkgray;
+  border: 8pt solid white;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.lcd.disabled {
+  box-shadow: 3pt 3pt black inset;
+  background-color: gray;
+}
+.dark {
+  background-color: #444;
+}
+.stretch {
+  flex-grow: 1;
+}
+.paneRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.paneRow.label {
+  color: #444;
+  background-color: white;
+  height: 36pt;
+  justify-content: flex-end;
+}
+.paneRow.label.header {
+  border-radius: 6pt 6pt 0 0;
+}
+.controlRow {
+  margin: 12pt;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
+.indicator {
+  width: 9pt;
+  height: 9pt;
+  border: 3pt solid black;
+  border-radius: 9pt;
+  background-color: gray;
+  background-image: radial-gradient(farthest-corner at 30% 30%,white 5%,10%,transparent 30%);
+  margin-left: 10pt;
+  margin-right: 10pt;
+}
+.indicator.horz {
+  width: 18pt;
+  height: 6pt;
+  background-image: linear-gradient(to bottom,transparent,5%,white 28%,30%,transparent);
+}
+.indicator.vert {
+  width: 6pt;
+  height: 18pt;
+  background-image: linear-gradient(to right,transparent,5%,white 28%,30%,transparent);
+}
+.indicator.on {
+  background-color: dodgerblue;
+  box-shadow: 0 0 12pt dodgerblue;
+}
+.indicator.ready {
+  background-color: lime;
+  box-shadow: 0 0 12pt lime;
+}
+.indicator.ready.attention {
+  animation: attentionReady 2s infinite;
+}
+@keyframes attentionReady {
+0% {
+  background-color: gray;
+  box-shadow: none;
+  }
+50% {
+  background-color: lime;
+  box-shadow: 0 0 12pt lime;
+  }
+100% {
+  background-color: gray;
+  box-shadow: none;
+}
+}
+.indicator.standby {
+  background-color: darkorange;
+  box-shadow: 0 0 12pt darkorange;
+}
+.indicator.standby.attention {
+  animation: attentionStandby 2s infinite;
+}
+@keyframes attentionStandby {
+0% {
+  background-color: gray;
+  box-shadow: none;
+  }
+50% {
+  background-color: darkorange;
+  box-shadow: 0 0 12pt darkorange;
+  }
+100% {
+  background-color: gray;
+  box-shadow: none;
+}
+}
+
+#mainRow {
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+#mainCol {
+  width: 640px;
+}
+#titleRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  margin: 6pt 0;
+}
+#titleBlock {
+  display: flex;
+  flex-direction: column;
+  align-content: center;
+  font-size: 150%;
+}
+#versionBlock {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+#titleCell {
+  font-size: 20pt;
+}
+#hostNameCell {
+  font-style: italic;
+}
+#hostNameCell, #versionCell, #webVersionCell {
+	font-size: 8pt;
+}
+#copyright {
+  font-size: 8pt;
+  font-weight: 200;
+  text-align: center;
+}
+#picture, #imgCrop, #canvas, .croppr-container {
+  box-shadow: 2pt 2pt 1pt gray;
+}
+#picture, #imgCrop, #canvas {
+  visibility: hidden;
+}
+#inputUploadButton {
+	font-size: 110%;
+  font-weight: 100;
+}
+#inputUploadButton.ready {
+  box-shadow: 0 0 12pt white;
+}
+#hostNameCell::before, #hostNameCell::after {
+  content: "\"";
+}
+#labelUploadName::after {
+  content: ".jpg";
+  color: #444;
+  margin-right: 12pt;
+}
+#indicTitle {
+  position: absolute;
+  left: 0;
+}
+
+.dropZone {
+  background-image:
+  radial-gradient(circle at 50.2% 50.2%,
+    rgba(0,0,0,.25),rgba(0,0,0,.15) 10%,
+    rgba(0,0,0,0) 10%,rgba(0,0,0,0) 20%,
+    rgba(0,0,0,.25) 20%,rgba(0,0,0,.25) 30%,
+    rgba(0,0,0,0) 30%,rgba(0,0,0,0) 40%,
+    rgba(0,0,0,.25) 40%,rgba(0,0,0,.15) 50%,
+    rgba(0,0,0,0) 50%),
+  radial-gradient(circle,
+    #222,#222 10%,
+    rgba(0,0,0,0) 10%,rgba(0,0,0,0) 20%,
+    #222 20%,#222 30%,
+    rgba(0,0,0,0) 30%,rgba(0,0,0,0) 40%,
+    #222 40%,#222 50%,
+    rgba(0,0,0,0) 50%);
+  animation: dropZoneAttention 2s infinite;
+}
+@keyframes dropZoneAttention {
+  0% {
+  background-image:
+  radial-gradient(circle at 50.2% 50.2%,
+    rgba(0,0,0,0),rgba(0,0,0,0) 10%,
+    rgba(0,0,0,.25) 10%,rgba(0,0,0,.15) 20%,
+    rgba(0,0,0,0) 20%,rgba(0,0,0,0) 30%,
+    rgba(0,0,0,.25) 30%,rgba(0,0,0,.25) 40%,
+    rgba(0,0,0,0) 40%,rgba(0,0,0,0) 50%,
+    rgba(0,0,0,.25) 40%,rgba(0,0,0,.15) 50%,
+    rgba(0,0,0,0) 50%),
+  radial-gradient(circle,
+    rgba(0,0,0,0),rgba(0,0,0,0) 10%,
+    #222 10%,#222 20%,
+    rgba(0,0,0,0) 20%,rgba(0,0,0,0) 30%,
+    #222 30%,#222 40%,
+    rgba(0,0,0,0) 40%,rgba(0,0,0,0) 50%,
+    #222 50%,
+    rgba(0,0,0,0) 50%);
+  }
+  50% {
+  background-image:
+  radial-gradient(circle at 50.2% 50.2%,
+    rgba(0,0,0,.25),rgba(0,0,0,.15) 10%,
+    rgba(0,0,0,0) 10%,rgba(0,0,0,0) 20%,
+    rgba(0,0,0,.25) 20%,rgba(0,0,0,.25) 30%,
+    rgba(0,0,0,0) 30%,rgba(0,0,0,0) 40%,
+    rgba(0,0,0,.25) 40%,rgba(0,0,0,.15) 50%,
+    rgba(0,0,0,0) 50%),
+  radial-gradient(circle,
+    #222,#222 10%,
+    rgba(0,0,0,0) 10%,rgba(0,0,0,0) 20%,
+    #222 20%,#222 30%,
+    rgba(0,0,0,0) 30%, rgba(0,0,0,0) 40%,
+    #222 40%,#222 50%,
+    rgba(0,0,0,0) 50%);
+  }
+  100% {
+  background-image:
+  radial-gradient(circle at 50.2% 50.2%,
+    rgba(0,0,0,0),rgba(0,0,0,0) 10%,
+    rgba(0,0,0,.25) 10%,rgba(0,0,0,.15) 20%,
+    rgba(0,0,0,0) 20%,rgba(0,0,0,0) 30%,
+    rgba(0,0,0,.25) 30%,rgba(0,0,0,.25) 40%,
+    rgba(0,0,0,0) 40%,rgba(0,0,0,0) 50%,
+    rgba(0,0,0,.25) 40%,rgba(0,0,0,.15) 50%,
+    rgba(0,0,0,0) 50%),
+  radial-gradient(circle,
+    rgba(0,0,0,0),rgba(0,0,0,0) 10%,
+    #222 10%,#222 20%,
+    rgba(0,0,0,0) 20%,rgba(0,0,0,0) 30%,
+    #222 30%,#222 40%,
+    rgba(0,0,0,0) 40%,rgba(0,0,0,0) 50%,
+    #222 50%,
+    rgba(0,0,0,0) 50%);
+  }
+}

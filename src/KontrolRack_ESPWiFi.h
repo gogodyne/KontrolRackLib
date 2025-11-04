@@ -123,9 +123,8 @@ public:
 
   virtual void begin()
   {
-    // Init
-    // wifi_init_config_t wifi_config = WIFI_INIT_CONFIG_DEFAULT();
-    // esp_wifi_init(&wifi_config);
+    // Web files are stored here; must be copied to the MCU by Arduino ESP32 Filesystem Uploader Tool
+    SPIFFS.begin(false, "");
 
     // MAC as text
     byte mac[6] = {0};

@@ -16,7 +16,9 @@ public:
     Sm = 2,
     Md = 3,
     Lg = 4,
-    XL = 5,
+    Xl = 5,
+    X2 = 6,
+    X3 = 7,
   };
 
   Adafruit_SSD1306 driver;

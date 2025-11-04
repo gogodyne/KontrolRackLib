@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head><title>%APP_TITLE% %HOST_NAME%</title>
+<link href="style.css" rel="stylesheet">
+<script src="script.js"></script>
+</head>
+
+<body>
+
+<div class="flexRow" id="mainRow">
+
+  <div class="flexCol column dark" id="mainCol">
+
+    <div class="pane rounded">
+      <div class="paneRow">
+        <div class="indicator" id="indicTitle"></div>
+
+        <div class="stretch" id="titleRow">
+          <div id="titleBlock">
+            <div id="titleCell"><a href="/">%APP_TITLE%</a></div>
+            <div id="versionBlock">
+              <div id="versionCell">%APP_VERSION%</div>
+              <div id="hostNameCell">%HOST_NAME%</div>
+              <div id="webVersionCell"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane rounded">
+
+      <div class="paneRow label header" id='labelPictureName'>
+        <div class="indicator horz" id="indicPicture"></div>
+        <input type="text" id="inputTargetName" value="%TARGET_NAME%" readonly class="stretch">
+      </div>
+
+      <div class="lcd" id="lcdPicture" onclick="loadPicture()">
+        <img id="picture" src="/picture" class="" width="160" height="128" onload="onLoadPicture(1)" onerror="onLoadPicture(0)">
+        <canvas id="canvas" width="160" height="128"></canvas>
+      </div>
+
+      <div class="controlRow" id="transport">
+        <input type="button" id="inputBack" class="rounded left" onclick="slideAdvance(-1)" value="BACK">
+        <input type="button" id="inputDelete" class="squared" onclick="slideDelete()" value="DELETE">
+        <input type="button" id="inputNext" class="rounded right" onclick="slideAdvance(1)" value="NEXT">
+      </div>
+
+<form method="post" action="/" id="ConfigForm">
+  <input type="hidden" name="advance" value="0" id="advance">
+  <input type="hidden" name="delete" value="" id="delete">
+</form>
+
+    </div>
+
+    <div class="pane rounded">
+
+      <div class="paneRow label header" id="labelUploadName">
+        <div class="indicator horz" id="indicUpload"></div>
+        <input type="text" id="inputUploadName" disabled class="stretch">
+      </div>
+
+      <div class="controlRow" id="editor">
+        <input type="button" id="inputUploadButton" class="rounded" value="UPLOAD" disabled>
+      </div>
+
+    </div>
+
+    <div class="stretch"></div>
+    <div id="copyright"></div>
+
+  </div>
+
+</div>
+
+</body>
+</html>

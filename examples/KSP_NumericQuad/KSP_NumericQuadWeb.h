@@ -1,6 +1,6 @@
 // (c) 2025 gogodyne
-#ifndef KSP_MeterQuadWeb_h
-#define KSP_MeterQuadWeb_h
+#ifndef KSP_NumericQuadWeb_h
+#define KSP_NumericQuadWeb_h
 
 #include <KontrolRack_ESPWiFi.h>
 #include <KontrolRack_QRCode.h>
@@ -12,7 +12,7 @@
 using namespace KontrolRack;
 
 ////////////////////////////////////////////////////////////////////////////////
-class KSP_MeterQuadWeb
+class KSP_NumericQuadWeb
 {
 public:
   PrintBuffer<Web_BufferSize> buffer;// for web HTML response
@@ -159,4 +159,4 @@ public:
   }
 };
 
-#endif// KSP_MeterQuadWeb_h
+#endif// KSP_NumericQuadWeb_h

@@ -3,19 +3,23 @@
 #define KSP_NumericQuad_h
 
 #include <Preferences.h>
+#include <nvs_flash.h>
 #include <KerbalSimpit.h>
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
 #include <KontrolRack_KR_Num8OLED12864.h>
-#include <KontrolRack_ESPWiFi.h>
+#include "KSP_NumericQuadWeb.h"
+
+// Use this to CLEAR *ALL* NVS and freeze
+// #define PREFS_CLEAR
 
 using namespace KontrolRack;
 
 #define BANKSCENE_COUNT (16)
 #define BANKSCENE_INDEX_KEY "bankSceneIndex"
 #define BANKSCENE_ROW_KEYFORMAT "row%d"
+
 #define BANKDATA_VALUESIZE 32
-#define BANKSCENE_INDEX_DEFAULT 0
 
 namespace UnitNames
 {
@@ -38,8 +42,41 @@ class KSP_NumericQuad : public KR::Numeric8Quad
 public:
   using Parent = KR::Numeric8Quad;
 
-  Preferences preferences;
-  ESPWiFi net;
+  //------------------------------------------------------------------------------
+  struct Menu
+  {
+    enum struct Mode { Off, Cfg };
+    enum struct Cfg { Done, Connect, Web, SIZE };
+
+    Mode mode = Mode::Off;
+    Cfg cfg = Cfg::Done;
+
+    bool isOff() const
+    {
+      return mode == Mode::Off;
+    }
+
+    bool isCfg() const
+    {
+      return mode == Mode::Cfg;
+    }
+
+    bool isCfg(Cfg other) const
+    {
+      return isCfg() && cfg == other;
+    }
+
+    void setOff()
+    {
+      mode = Mode::Off;
+    }
+
+    void setCfg(Cfg other)
+    {
+      mode = Mode::Cfg; cfg = other;
+    }
+  };
+  Menu menu;
 
   // Bank
   enum class BankDisplayMode : uint8_t
@@ -214,7 +251,7 @@ public:
     {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
     {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
   };
-  uint8_t bankSceneIndex = BANKSCENE_INDEX_DEFAULT;
+  uint8_t bankSceneIndex = 0;
 
   // Data for display
   struct DisplayData
@@ -276,6 +313,8 @@ public:
     }
   };
 
+  Preferences preferences;
+
   // KSP Messages
   void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
   // | Vessel Movement/Position |
@@ -292,19 +331,47 @@ public:
   atmoConditionsMessage atmoConditionsMsg;
   intersectsMessage intersectsMsg;
 
-  // Connection
-  enum ConnectionState
+  // KSP connection
+  struct KSPStatus
   {
-    Disconnected = -1,
-    Connecting = 0,
-    ConnectedKSP = 1,
-    ConnectedKSP2 = 2,
+    enum State
+    {
+      Disconnected = -1,
+      Connecting = 0,
+      ConnectedKSP = 1,
+      ConnectedKSP2 = 2,
+    };
+    int state = State::Connecting;
+
+    virtual void connect(bool isKSP2)
+    {
+      state = isKSP2 ? State::ConnectedKSP2 : State::ConnectedKSP;
+    }
+
+    virtual bool isConnected() const
+    {
+      return state > 0;
+    }
+
+    virtual bool isConnecting() const
+    {
+      return state == State::Connecting;
+    }
+
+    virtual void toggleConnecting()
+    {
+      state = isConnecting() ? State::Disconnected : State::Connecting;
+    }
   };
-  int connectionState = ConnectionState::Connecting;
+  KSPStatus kspStatus;
   unsigned long heartbeatNextMs = 0;
 
+  // Long-press
   timing_t longPressMs = 0;
   bool isLongPress = false;
+
+  // Web
+  KSP_NumericQuadWeb web;
 
   KSP_NumericQuad(TwoWire& inWire)
   : Parent(inWire)
@@ -314,6 +381,7 @@ public:
   virtual void begin(void (*messageHandler)(byte messageType, byte msg[], byte msgSize))
   {
     prefsBegin();
+    web.begin();
 
     mySimpitHandler = messageHandler;
 
@@ -327,15 +395,31 @@ public:
     }
 
     Parent::begin(MODULE_FPS, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
-    net.begin();
   }
 
   virtual void loop() override
   {
     Parent::loop();
-    net.loop();
+    web.loop();
 
-    // Input
+    if (menu.isOff())
+    {
+      inputBanks();
+
+      heartbeat();
+    }
+    else
+    {
+      inputMenu();
+    }
+
+    mySimpit.update();
+  }
+
+  //------------------------------------------------------------------------------
+
+  virtual void inputBanks()
+  {
     switch (bankSelectMode)
     {
     case KR::BankSelectMode::None:
@@ -391,17 +475,62 @@ public:
       isLongPress = false;
     }
 
-    // Connect toggle
-    if (!isConnected())
+    // Menu
+    if (menu.isOff())
     {
       if (isLongPress && !wasLongPress)
       {
-        connectionState = isConnecting() ? ConnectionState::Disconnected : ConnectionState::Connecting;
+        menu.setCfg(Menu::Cfg::Done);
       }
     }
+  }
 
-    heartbeat();
-    mySimpit.update();
+  virtual void inputMenu()
+  {
+    if (!menu.isOff())
+    {
+      if (encBtn.didPress())
+      {
+        if (menu.isCfg(Menu::Cfg::Done))
+        {
+          // In case of issues...
+          num8.reset();
+
+          web.net.WiFi_Disconnect(true);
+          menu.setOff();
+        }
+
+        if (menu.isCfg(Menu::Cfg::Connect))
+        {
+          kspStatus.toggleConnecting();
+        }
+
+        if (menu.isCfg(Menu::Cfg::Web))
+        {
+          // toggle
+          if (web.net.WiFi_IsConnected())
+          {
+            web.net.WiFi_Disconnect(true);
+          }
+          else
+            // not connected
+            if (!web.net.WiFi_IsBusy())
+            {
+              web.net.WiFi_ConnectAP();
+            }
+        }
+      }
+
+      if (encBtn.didChangeEnc())
+      {
+        if (menu.isCfg())
+        {
+          int selection = (int)menu.cfg;
+          selection += encBtn.didIncrease() ? +1 : -1;
+          menu.cfg = (Menu::Cfg)constrain(selection, 0, (int)Menu::Cfg::SIZE - 1);
+        }
+      }
+    }
   }
 
   //------------------------------------------------------------------------------
@@ -467,7 +596,7 @@ public:
     // Selected Scene index
     {
       const char* key = BANKSCENE_INDEX_KEY;
-      uint8_t value = preferences.getUChar(key, BANKSCENE_INDEX_DEFAULT);
+      uint8_t value = preferences.getUChar(key, 0);
 
       if (load)
       {
@@ -520,17 +649,7 @@ public:
   //------------------------------------------------------------------------------
   // Connection
 
-  virtual bool isConnected()
-  {
-    return connectionState > 0;
-  }
-
-  virtual bool isConnecting()
-  {
-    return connectionState == ConnectionState::Connecting;
-  }
-
-  virtual int heartbeat()
+  virtual void heartbeat()
   {
     const int HeartbeatInterval = 5000;
 
@@ -539,24 +658,22 @@ public:
     {
       heartbeatNextMs = timing.ms + HeartbeatInterval;
 
-      mySimpit.send(ECHO_REQ_MESSAGE, net.hostName, strlen(net.hostName) + 1);
+      mySimpit.send(ECHO_REQ_MESSAGE, web.net.hostName, strlen(web.net.hostName) + 1);
     }
 
     // Connect
-    if (isConnecting())
+    if (kspStatus.isConnecting())
     {
       if (mySimpit.init())
       {
         onConnect();
       }
     }
-
-    return connectionState;
   }
 
   virtual void onConnect()
   {
-    connectionState = mySimpit.connectedToKSP2() ? ConnectionState::ConnectedKSP2 : ConnectionState::ConnectedKSP;
+    kspStatus.connect(mySimpit.connectedToKSP2());
 
     mySimpit.inboundHandler(mySimpitHandler);
 
@@ -581,7 +698,7 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
-        if (!isConnected())
+        if (!kspStatus.isConnected())
         {
           onConnect();
         }
@@ -690,6 +807,9 @@ public:
       break;
     }
   }
+
+  //------------------------------------------------------------------------------
+  // Drawing
 
   virtual DisplayData makeDisplayData(uint8_t bankIndex)
   {
@@ -861,8 +981,81 @@ public:
     return DisplayData();
   }
 
-  //------------------------------------------------------------------------------
-  // Drawing
+  virtual void drawMenu(uint8_t bankIndex)
+  {
+    if (menu.isCfg())
+    {
+      if (bankIndex == 0)
+      {
+        oled12864.gfx.setTextSize(SSD1306::Size::Xs, SSD1306::Size::Sm);
+        oled12864.gfx.setCursor(0, 0);
+
+        drawMenuItem("Done", menu.isCfg(Menu::Cfg::Done));
+        drawMenuItem((kspStatus.isConnecting() ? "Stop Connectng to KSP" : "Try Connectng to KSP"), menu.isCfg(Menu::Cfg::Connect));
+        drawMenuItem((web.net.WiFi_IsConnected() ? "Stop Web Config" : "Start Web Config"), menu.isCfg(Menu::Cfg::Web));
+
+        if (web.net.WiFi_IsBusy())
+        {
+          oled12864.gfx.println(timing.isHz(2) ? "/" : "\\");
+        }
+
+        if (web.net.WiFi_IsConnected())
+        {
+          if (WiFi.softAPgetStationNum() > 0)
+          {
+            oled12864.gfx.println(WiFi.softAPIP());
+          }
+          else
+          {
+            oled12864.gfx.print(web.net.hostName);
+          }
+        }
+      }
+
+      if (bankIndex == 1)
+      {
+        if (web.net.WiFi_IsConnected())
+        {
+          oled12864.gfx.setCursor(0, 0);
+          oled12864.gfx.setTextSize(SSD1306::Size::Sm);
+          oled12864.gfx.println("step");
+          oled12864.gfx.setTextSize(SSD1306::Size::X2);
+
+          // None connected to the AP; show the SSID
+          if (WiFi.softAPgetStationNum() == 0)
+          {
+            oled12864.gfx.print("1");
+            web.drawQRCode_SSID(oled12864.gfx, oled12864.gfx.width() / 2, 0);
+          }
+          else
+            // A client is connected; show the URL
+          {
+            oled12864.gfx.print("2");
+            web.drawQRCode_URL(oled12864.gfx, oled12864.gfx.width() / 2, 0);
+          }
+        }
+      }
+    }
+  }
+
+  virtual void drawMenuItem(const char* itemLabel, bool isSelected, bool newline = true)
+  {
+    bool highlight = isSelected && timing.isHz(2);
+
+    if (highlight)
+    {
+      oled12864.gfx.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+    }
+    oled12864.gfx.print(itemLabel);
+    if (newline)
+    {
+      oled12864.gfx.println();
+    }
+    if (highlight)
+    {
+      oled12864.gfx.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    }
+  }
 
   virtual bool isDrawBankTick(uint8_t bankIndex) override
   {
@@ -881,6 +1074,11 @@ public:
     {
       oled12864.clear();
       {
+        if (!menu.isOff())
+        {
+          drawMenu(bankIndex);
+        }
+        else
         if (bankLabel.label)
         {
           int16_t x1, y1;
@@ -915,9 +1113,9 @@ public:
                 oled12864.gfx.printf("%X", bankSceneIndex);
 
                 // Connection status
-                if (connectionState < 1)
+                if (!kspStatus.isConnected())
                 {
-                  oled12864.gfx.print(isConnecting() ? (timing.isHz(2) ? "/" : "\\") : "!");
+                  oled12864.gfx.print(kspStatus.isConnecting() ? (timing.isHz(2) ? "/" : "\\") : "!");
                 }
               }
             }
