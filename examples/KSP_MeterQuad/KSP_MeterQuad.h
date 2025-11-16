@@ -886,6 +886,9 @@ public:
     }
   }
 
+  //------------------------------------------------------------------------------
+  // Drawing
+
   virtual DisplayData makeDisplayData(uint8_t bankIndex)
   {
     BankDisplayMode bankDisplayMode = bankScenes[bankSceneIndex].modes[bankIndex];

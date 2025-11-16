@@ -55,4 +55,6 @@
 
 #define MODULE_FPS 12
 
+#define WIFI_AUTOSTART
+
 #endif// KSP_Settings_h

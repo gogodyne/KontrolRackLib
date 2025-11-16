@@ -15,9 +15,9 @@ KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will commu
 
 using namespace KontrolRack;
 
-#define BANKSCENE_COUNT (16)
-#define BANKSCENE_INDEX_KEY "bankSceneIndex"
-#define BANKSCENE_ROW_KEYFORMAT "row%d"
+#define SCENE_COUNT (16)
+#define SCENE_INDEX_KEY "bankSceneIndex"
+#define SCENE_ROW_KEYFORMAT "row%d"
 
 #define BANKDATA_VALUESIZE 32
 
@@ -229,7 +229,7 @@ public:
   {
     BankDisplayMode modes[bankCount];
   };
-  BankScene bankScenes[BANKSCENE_COUNT] =
+  BankScene bankScenes[SCENE_COUNT] =
   {
     {{BankDisplayMode::ApoapsisDistance, BankDisplayMode::ApoapsisTime, BankDisplayMode::PeriapsisDistance, BankDisplayMode::PeriapsisTime}},
     {{BankDisplayMode::AltitudeSeaLevel, BankDisplayMode::AltitudeSurface, BankDisplayMode::VelocityOrbital, BankDisplayMode::VelocitySurface}},
@@ -381,7 +381,10 @@ public:
   virtual void begin(void (*messageHandler)(byte messageType, byte msg[], byte msgSize))
   {
     prefsBegin();
-    web.begin();
+    web.begin(
+      [this](const String& var) { return Web_ParsePage(var); },
+      [this](AsyncWebServerRequest* request) { return Web_ProcessForm(request); }
+      );
 
     mySimpitHandler = messageHandler;
 
@@ -395,6 +398,14 @@ public:
     }
 
     Parent::begin(MODULE_FPS, false, SWITCH_ADDRESS, OLED12864_ADDRESS, Num8::Info(NUM8_DIN, NUM8_CS, NUM8_CLK, NUM8_INTENSITY), EncBtn::Info(ROTENC_PositionCount, ROTENC_A, ROTENC_B, ROTENC_S));
+
+#if defined(WIFI_AUTOSTART)
+    {
+      Serial.print(web.net.hostName);
+      Serial.println(": Using WiFi auto start.");
+      web.net.WiFi_ConnectAP();
+    }
+#endif// defined(WIFI_AUTOSTART)
   }
 
   virtual void loop() override
@@ -417,6 +428,7 @@ public:
   }
 
   //------------------------------------------------------------------------------
+  // Input
 
   virtual void inputBanks()
   {
@@ -496,7 +508,6 @@ public:
           // In case of issues...
           num8.reset();
 
-          web.net.WiFi_Disconnect(true);
           menu.setOff();
         }
 
@@ -513,11 +524,11 @@ public:
             web.net.WiFi_Disconnect(true);
           }
           else
-            // not connected
-            if (!web.net.WiFi_IsBusy())
-            {
-              web.net.WiFi_ConnectAP();
-            }
+          // not connected
+          if (!web.net.WiFi_IsBusy())
+          {
+            web.net.WiFi_ConnectAP();
+          }
         }
       }
 
@@ -534,6 +545,7 @@ public:
   }
 
   //------------------------------------------------------------------------------
+  // Edit
 
   virtual bool checkBankSelectModeTimeout() override
   {
@@ -547,29 +559,48 @@ public:
     return false;
   }
 
-  virtual void cycleBankDisplayMode(bool next)
+  virtual bool isValidScene(int iScene)
+  {
+    return iScene == constrain(iScene, 0, SCENE_COUNT - 1);
+  }
+
+  virtual bool isValidBank(int iBank)
+  {
+    return iBank == constrain(iBank, 0, bankCount - 1);
+  }
+
+  virtual bool isValidBankDisplayMode(int iBankMode)
+  {
+    return iBankMode == constrain(iBankMode, 0, (int)BankDisplayMode::SIZE - 1);
+  }
+
+  virtual bool setBankDisplayMode(int iScene, int iBank, int iBankMode)
+  {
+    if (isValidScene(iScene) && isValidBank(iBank) && isValidBankDisplayMode(iBankMode))
+    {
+      if (bankScenes[iScene].modes[iBank] != (BankDisplayMode)iBankMode)
+      {
+        bankScenes[iScene].modes[iBank] = (BankDisplayMode)iBankMode;
+
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  virtual bool cycleBankDisplayMode(bool next)
   {
     resetBankSelectModeTimeout();
 
-    BankDisplayMode& bankDisplayMode = bankScenes[bankSceneIndex].modes[bankSelectedIndex];
-
-    if (next)
-    {
-      if ((int)bankDisplayMode < (int)BankDisplayMode::SIZE - 1)
-        bankDisplayMode = (BankDisplayMode)((int)bankDisplayMode + 1);
-    }
-    else
-    {
-      if ((int)bankDisplayMode > 0)
-        bankDisplayMode = (BankDisplayMode)((int)bankDisplayMode - 1);
-    }
+    return setBankDisplayMode(bankSceneIndex, bankSelectedIndex, (int)bankScenes[bankSceneIndex].modes[bankSelectedIndex] + (next ? 1 : -1));
   }
 
   virtual void cycleBankScene(bool next)
   {
     if (next)
     {
-      bankSceneIndex = min(bankSceneIndex + 1, BANKSCENE_COUNT - 1);
+      bankSceneIndex = min(bankSceneIndex + 1, SCENE_COUNT - 1);
     }
     else
     {
@@ -582,6 +613,12 @@ public:
 
   virtual void prefsBegin()
   {
+#if defined(PREFS_CLEAR)
+    nvs_flash_erase();
+    nvs_flash_init();
+    while(true);
+#endif// defined(PREFS_CLEAR)
+
     preferences.begin(PREFS_Namespace);
     prefsLoad();
   }
@@ -595,7 +632,7 @@ public:
   {
     // Selected Scene index
     {
-      const char* key = BANKSCENE_INDEX_KEY;
+      const char* key = SCENE_INDEX_KEY;
       uint8_t value = preferences.getUChar(key, 0);
 
       if (load)
@@ -616,9 +653,9 @@ public:
     {
       char key[16] = {0};
 
-      for (int i = 0; i < BANKSCENE_COUNT; ++i)
+      for (int i = 0; i < SCENE_COUNT; ++i)
       {
-        sprintf(key, BANKSCENE_ROW_KEYFORMAT, i);
+        sprintf(key, SCENE_ROW_KEYFORMAT, i);
         uint8_t modes[bankCount];
         size_t size = 0;
 
@@ -659,6 +696,7 @@ public:
       heartbeatNextMs = timing.ms + HeartbeatInterval;
 
       mySimpit.send(ECHO_REQ_MESSAGE, web.net.hostName, strlen(web.net.hostName) + 1);
+      Serial.println();
     }
 
     // Connect
@@ -668,6 +706,7 @@ public:
       {
         onConnect();
       }
+      Serial.println();
     }
   }
 
@@ -977,8 +1016,6 @@ public:
     case BankDisplayMode::IntersectsTimeToIntersect2:
       return DisplayData(bankDisplayMode, intersectsMsg.timeToIntersect2);
     }
-
-    return DisplayData();
   }
 
   virtual void drawMenu(uint8_t bankIndex)
@@ -991,8 +1028,8 @@ public:
         oled12864.gfx.setCursor(0, 0);
 
         drawMenuItem("Done", menu.isCfg(Menu::Cfg::Done));
-        drawMenuItem((kspStatus.isConnecting() ? "Stop Connectng to KSP" : "Try Connectng to KSP"), menu.isCfg(Menu::Cfg::Connect));
-        drawMenuItem((web.net.WiFi_IsConnected() ? "Stop Web Config" : "Start Web Config"), menu.isCfg(Menu::Cfg::Web));
+        drawMenuItem((kspStatus.isConnecting() ?    "Stop Connectng to KSP" : "Try Connectng to KSP"), menu.isCfg(Menu::Cfg::Connect));
+        drawMenuItem((web.net.WiFi_IsConnected() ?  "Stop Web Config" :       "Start Web Config"), menu.isCfg(Menu::Cfg::Web));
 
         if (web.net.WiFi_IsBusy())
         {
@@ -1028,7 +1065,7 @@ public:
             web.drawQRCode_SSID(oled12864.gfx, oled12864.gfx.width() / 2, 0);
           }
           else
-            // A client is connected; show the URL
+          // A client is connected; show the URL
           {
             oled12864.gfx.print("2");
             web.drawQRCode_URL(oled12864.gfx, oled12864.gfx.width() / 2, 0);
@@ -1158,6 +1195,130 @@ public:
       drawNum8Effects(bankIndex);
       // (Numeric is not I2C; Render is done in the draw)
     }
+  }
+
+  //------------------------------------------------------------------------------
+  // Web
+
+  // Replace page template tags with values
+  virtual String Web_ParsePage(const String& var)
+  {
+    web.buffer.cls();
+
+    // Bank count
+    if (var == s_Web_BankCount)
+    {
+      web.buffer.print(bankCount);
+    }
+    else
+    // Scene count
+    if (var == s_Web_SceneCount)
+    {
+      web.buffer.print(SCENE_COUNT);
+    }
+    else
+    // Scene default
+    if (var == s_Web_SceneDefault)
+    {
+      web.buffer.print(bankSceneIndex);
+    }
+    else
+    // Bank Mode count
+    if (var == s_Web_BankModeCount)
+    {
+      web.buffer.print((int)BankDisplayMode::SIZE);
+    }
+    else
+    // Bank Mode names
+    if (var == s_Web_BankModeNames)
+    {
+      for (int i = 0; i < (int)BankDisplayMode::SIZE; ++i)
+      {
+        web.buffer.printf("'%s',", bankLabels[i].name);
+      }
+    }
+    else
+    // Bank Scenes
+    if (var == s_Web_BankScenes)
+    {
+      web.buffer.cls();
+
+      for (int iScene = 0; iScene < SCENE_COUNT; ++iScene)
+      {
+        for (int iBank = 0; iBank < bankCount; ++iBank)
+        {
+          web.buffer.printf("%d,", bankScenes[iScene].modes[iBank]);
+        }
+        web.buffer.println();
+      }
+    }
+    // not recognized
+    else
+    {
+      return String(var);
+    }
+
+    return String(web.buffer.c_str());
+  }
+
+  // Web Form processing
+  virtual void Web_ProcessForm(AsyncWebServerRequest* request)
+  {
+    if (Web_ProcessForm_SceneDefault(request))
+    {
+      return;
+    }
+
+    if (Web_ProcessForm_BankMode(request))
+    {
+      return;
+    }
+  }
+
+  // Scene Default
+  virtual bool Web_ProcessForm_SceneDefault(AsyncWebServerRequest* request)
+  {
+    if (request->hasArg(s_Web_SceneDefaultRadio))
+    {
+      int value = request->arg(s_Web_SceneDefaultRadio).toInt();
+      if (value == constrain(value, 0, SCENE_COUNT - 1))
+      {
+        if (bankSceneIndex != value)
+        {
+          bankSceneIndex = value;
+          prefsStore();
+        }
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  // Bank Display Mode
+  virtual bool Web_ProcessForm_BankMode(AsyncWebServerRequest* request)
+  {
+    if (request->hasArg(s_Web_BankModeForm))
+    {
+      if (request->hasArg(s_Web_BankModeScene)
+        && request->hasArg(s_Web_BankModeBank)
+        && request->hasArg(s_Web_BankModeDropdown))
+      {
+        int iScene = request->arg(s_Web_BankModeScene).toInt();
+        int iBank = request->arg(s_Web_BankModeBank).toInt();
+        int iBankMode = request->arg(s_Web_BankModeDropdown).toInt();
+
+        if (setBankDisplayMode(iScene, iBank, iBankMode))
+        {
+          prefsStore();
+        }
+      }
+
+      return true;
+    }
+
+    return false;
   }
 };
 
