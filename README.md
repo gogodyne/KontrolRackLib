@@ -1,5 +1,5 @@
 # KontrolRackLib
-The KontrolRack Library supports writing firmware to run panels in a "KontrolRack", a proposed standard for modular USB control panels.
+The "KontrolRack" is a proposed standard for modular USB control panels.
 
 - [https://gogodyne.co/KontrolRack/](https://gogodyne.co/KontrolRack/)
 
