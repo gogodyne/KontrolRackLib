@@ -1,72 +1,138 @@
 <!DOCTYPE html>
 <html><head><title>%APP_TITLE% %HOST_NAME%</title>
 <link href="style.css" rel="stylesheet">
-<script src="script.js"></script>
+<script>
+const bankCount = %BANK_COUNT%;
+const sceneCount = %SCENE_COUNT%;
+const sceneDefault = %SCENE_DEFAULT%;
+const bankModeCount = %BANK_MODECOUNT%;
+const bankModeNames =
+[
+%BANK_MODENAMES%
+];
+const bankScenes =
+[
+%BANK_SCENES%
+];
+let bankModeScene = "";
+let bankModeBank = "";
+let dropdown = "";
+function ById(id) { return document.getElementById(id); }
+function GetBankSceneMode(iScene, iBank) { return bankScenes[iScene * bankCount + iBank]; }
+function GetBankModeName(iScene, iBank) { return bankModeNames[GetBankSceneMode(iScene, iBank)]; }
+function MakeSceneBankId(iScene, iBank) { return "scene" + iScene + "bank" + iBank; }
+function SubmitSceneDefault() { ById('sceneDefaultForm').submit(); }
+function SubmitBankMode() { ById('bankModeForm').submit(); }
+function SetSceneBank(bankModeCell, iScene, iBank)
+{
+  if (bankModeScene.value == iScene && bankModeBank.value == iBank) return;
+  bankModeScene.value = iScene;
+  bankModeBank.value = iBank;
+  const iBankMode = GetBankSceneMode(iScene, iBank);
+  dropdown.style.display = 'inline';
+  dropdown.value = iBankMode;
+  for (let i = 0; i < sceneCount; ++i)
+  {
+    for (let j = 0; j < bankCount; ++j)
+    {
+      ById(MakeSceneBankId(i, j)).getElementsByTagName('span')[0].style.display = (i == iScene && j == iBank) ? 'none' : 'inline';
+    }
+  }
+  bankModeCell.appendChild(dropdown);
+  dropdown.focus();
+  event.stopPropagation();
+}
+function BuildSceneGrid()
+{
+  bankModeScene = ById("bankModeScene");
+  bankModeBank = ById("bankModeBank");
+  let buffer = "";
+  // Header
+  buffer += "<div class='gridHeader'>Scene</div>";
+  for (let iBank = 0; iBank < bankCount; ++iBank)
+  {
+    buffer += "<div class='gridHeader'>Bank " + (iBank + 1) + "</div>";
+  }
+  // Rows
+  for (let iScene = 0; iScene < sceneCount; ++iScene)
+  {
+    let isSceneDefault = iScene == sceneDefault;
+    // Row header
+    buffer += "<div class='gridRowHeader'>";
+    {
+      // Default Scene radio
+      buffer += "<input type='radio' id='sceneDefaultRadio" + iScene + "' name='sceneDefaultRadio" + "' value='" + iScene + "' onchange='SubmitSceneDefault();' form='sceneDefaultForm'" + (isSceneDefault ? " checked" : "") + ">";
+      // Scene name
+      buffer += "<label for='sceneDefaultRadio" + iScene + "'>" + iScene.toString(16).toUpperCase() + "</label>";
+    }
+    buffer += "</div>";
+    // Banks
+    for (let iBank = 0; iBank < bankCount; ++iBank)
+    {
+      buffer += "<div class='gridCell clickable' id='" + MakeSceneBankId(iScene, iBank) + "'><span>" + GetBankModeName(iScene, iBank) + "</span></div>";
+    }
+  }
+  // insert into the document
+  const bankScenesGrid = ById('bankScenesGrid');
+  bankScenesGrid.innerHTML = buffer;
+  // cell click
+  for (let iScene = 0; iScene < sceneCount; ++iScene)
+  {
+    for (let iBank = 0; iBank < bankCount; ++iBank)
+    {
+      let bankModeCell = ById(MakeSceneBankId(iScene, iBank));
+      bankModeCell.addEventListener('click', function(){ SetSceneBank(bankModeCell, iScene, iBank); });
+    }
+  }
+}
+function BuildDropdown()
+{
+  dropdown = ById('bankModeDropdown');
+  for (let iBankMode = 0; iBankMode < bankModeCount; ++iBankMode)
+  {
+    const option = new Option(bankModeNames[iBankMode], iBankMode)
+    dropdown.appendChild(option);
+  }
+}
+window.onload=function()
+{
+  BuildSceneGrid();
+  BuildDropdown();
+}
+</script>
 </head>
+
+<form method="post" action="/" id="sceneDefaultForm"></form>
+
+<form method="post" action="/" id="bankModeForm">
+  <input type="hidden" name="bankModeForm" value="1">
+  <input type="hidden" name="bankModeScene" value="-1" id="bankModeScene">
+  <input type="hidden" name="bankModeBank" value="-1" id="bankModeBank">
+</form>
 
 <body>
 
+<select class="dropdown" name="bankModeDropdown" id="bankModeDropdown" form="bankModeForm" onchange="SubmitBankMode()"></select>
+
 <div class="flexRow" id="mainRow">
 
-  <div class="flexCol column dark" id="mainCol">
+  <div class="flexCol" id="mainCol">
 
-    <div class="pane rounded">
+    <div class="pane roundTop">
       <div class="paneRow">
-        <div class="indicator" id="indicTitle"></div>
-
         <div class="stretch" id="titleRow">
           <div id="titleBlock">
-            <div id="titleCell"><a href="/">%APP_TITLE%</a></div>
-            <div id="versionBlock">
-              <div id="versionCell">%APP_VERSION%</div>
+            <div id="titleCell">%APP_TITLE%</div>
+            <div id="hostNameBlock">
               <div id="hostNameCell">%HOST_NAME%</div>
-              <div id="webVersionCell"></div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="pane rounded">
-
-      <div class="paneRow label header" id='labelPictureName'>
-        <div class="indicator horz" id="indicPicture"></div>
-        <input type="text" id="inputTargetName" value="%TARGET_NAME%" readonly class="stretch">
-      </div>
-
-      <div class="lcd" id="lcdPicture" onclick="loadPicture()">
-        <img id="picture" src="/picture" class="" width="160" height="128" onload="onLoadPicture(1)" onerror="onLoadPicture(0)">
-        <canvas id="canvas" width="160" height="128"></canvas>
-      </div>
-
-      <div class="controlRow" id="transport">
-        <input type="button" id="inputBack" class="rounded left" onclick="slideAdvance(-1)" value="BACK">
-        <input type="button" id="inputDelete" class="squared" onclick="slideDelete()" value="DELETE">
-        <input type="button" id="inputNext" class="rounded right" onclick="slideAdvance(1)" value="NEXT">
-      </div>
-
-<form method="post" action="/" id="ConfigForm">
-  <input type="hidden" name="advance" value="0" id="advance">
-  <input type="hidden" name="delete" value="" id="delete">
-</form>
-
+    <div class="grid" id="bankScenesGrid">
     </div>
-
-    <div class="pane rounded">
-
-      <div class="paneRow label header" id="labelUploadName">
-        <div class="indicator horz" id="indicUpload"></div>
-        <input type="text" id="inputUploadName" disabled class="stretch">
-      </div>
-
-      <div class="controlRow" id="editor">
-        <input type="button" id="inputUploadButton" class="rounded" value="UPLOAD" disabled>
-      </div>
-
-    </div>
-
-    <div class="stretch"></div>
-    <div id="copyright"></div>
 
   </div>
 

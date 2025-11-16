@@ -62,42 +62,47 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-template< size_t N >
+template<size_t N>
 class PrintBuffer : public Print
 {
-  char buffer[ N ];
+  char buffer[N];
 public:
 
   ////////////////////////////////////////////////////////////////////////////////
   // Print
-  size_t write( uint8_t c )
+  size_t write(uint8_t c)
   {
-    int len = strlen( buffer );
-    if ( len < sizeof( buffer ) )
-      buffer[ len ] = c;
+    int len = strlen(buffer);
+    if (len < sizeof(buffer))
+      buffer[len] = c;
 
-    return ( len < sizeof( buffer ) ) ? 1 : 0;
+    return (len < sizeof(buffer)) ? 1 : 0;
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  void cls()              { memset( buffer, 0, sizeof( buffer ) ); }
-  void cls( size_t size ) { memset( buffer, 0, min( size, sizeof( buffer ) ) ); }
+  void cls()              { memset(buffer, 0, sizeof(buffer)); }
+  void cls(size_t size)   { memset(buffer, 0, min(size, sizeof(buffer))); }
   char* c_str()           { return buffer; }
 
   ////////////////////////////////////////////////////////////////////////////////
-  int printf( const char* format, ... )
+  int printf(const char* format, ...)
   {
     va_list args;
-    int len = strlen( buffer );
-    int n = sizeof( buffer ) - len;
-    if ( n > 0 )
+    int length = strlen(buffer);
+    int n = sizeof(buffer) - length;
+    if (n > 0)
     {
-      va_start( args, format );
-      len = vsnprintf( buffer + len, n, format, args );
-      va_end( args );
+      va_start(args, format);
+      length = vsnprintf(buffer + length, n, format, args);
+      va_end(args);
     }
 
-    return len;
+    return length;
+  }
+
+  int isEmpty()
+  {
+    return strlen(buffer) == 0;
   }
 };
 
