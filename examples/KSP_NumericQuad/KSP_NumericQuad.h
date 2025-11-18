@@ -651,12 +651,12 @@ public:
 
     // All Scene rows
     {
-      char key[16] = {0};
+      char key[16] = { 0 };
 
       for (int i = 0; i < SCENE_COUNT; ++i)
       {
         sprintf(key, SCENE_ROW_KEYFORMAT, i);
-        uint8_t modes[bankCount];
+        uint8_t modes[bankCount] = { 0 };
         size_t size = 0;
 
         if (preferences.getType(key) == PT_BLOB)
@@ -706,7 +706,6 @@ public:
       {
         onConnect();
       }
-      Serial.println();
     }
   }
 
