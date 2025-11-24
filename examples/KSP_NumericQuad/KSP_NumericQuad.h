@@ -353,6 +353,11 @@ public:
       return state > 0;
     }
 
+    virtual bool isConnectedKSP2() const
+    {
+      return state == State::ConnectedKSP2;
+    }
+
     virtual bool isConnecting() const
     {
       return state == State::Connecting;
@@ -364,7 +369,6 @@ public:
     }
   };
   KSPStatus kspStatus;
-  unsigned long heartbeatNextMs = 0;
 
   // Long-press
   timing_t longPressMs = 0;
@@ -416,8 +420,7 @@ public:
     if (menu.isOff())
     {
       inputBanks();
-
-      heartbeat();
+      checkConnection();
     }
     else
     {
@@ -505,9 +508,6 @@ public:
       {
         if (menu.isCfg(Menu::Cfg::Done))
         {
-          // In case of issues...
-          num8.reset();
-
           menu.setOff();
         }
 
@@ -686,48 +686,33 @@ public:
   //------------------------------------------------------------------------------
   // Connection
 
-  virtual void heartbeat()
+  virtual void checkConnection()
   {
-    const int HeartbeatInterval = 5000;
-
-    // Ping
-    if (timing.ms >= heartbeatNextMs)
-    {
-      heartbeatNextMs = timing.ms + HeartbeatInterval;
-
-      mySimpit.send(ECHO_REQ_MESSAGE, web.net.hostName, strlen(web.net.hostName) + 1);
-      Serial.println();
-    }
-
-    // Connect
+    // Trying to connect
     if (kspStatus.isConnecting())
     {
+      // Try and did connect
       if (mySimpit.init())
       {
-        onConnect();
+        kspStatus.connect(mySimpit.connectedToKSP2());
+
+        mySimpit.inboundHandler(mySimpitHandler);
+
+        // | Vessel Movement/Position |
+        mySimpit.registerChannel(ALTITUDE_MESSAGE);
+        mySimpit.registerChannel(VELOCITY_MESSAGE);
+        mySimpit.registerChannel(AIRSPEED_MESSAGE);
+        mySimpit.registerChannel(APSIDES_MESSAGE);
+        mySimpit.registerChannel(APSIDESTIME_MESSAGE);
+        mySimpit.registerChannel(MANEUVER_MESSAGE);
+        mySimpit.registerChannel(ORBIT_MESSAGE);
+        mySimpit.registerChannel(ROTATION_DATA_MESSAGE);
+        // | External Environment |
+        mySimpit.registerChannel(TARGETINFO_MESSAGE);
+        mySimpit.registerChannel(ATMO_CONDITIONS_MESSAGE);
+        mySimpit.registerChannel(INTERSECTS_MESSAGE);
       }
     }
-  }
-
-  virtual void onConnect()
-  {
-    kspStatus.connect(mySimpit.connectedToKSP2());
-
-    mySimpit.inboundHandler(mySimpitHandler);
-
-    // | Vessel Movement/Position |
-    mySimpit.registerChannel(ALTITUDE_MESSAGE);
-    mySimpit.registerChannel(VELOCITY_MESSAGE);
-    mySimpit.registerChannel(AIRSPEED_MESSAGE);
-    mySimpit.registerChannel(APSIDES_MESSAGE);
-    mySimpit.registerChannel(APSIDESTIME_MESSAGE);
-    mySimpit.registerChannel(MANEUVER_MESSAGE);
-    mySimpit.registerChannel(ORBIT_MESSAGE);
-    mySimpit.registerChannel(ROTATION_DATA_MESSAGE);
-    // | External Environment |
-    mySimpit.registerChannel(TARGETINFO_MESSAGE);
-    mySimpit.registerChannel(ATMO_CONDITIONS_MESSAGE);
-    mySimpit.registerChannel(INTERSECTS_MESSAGE);
   }
 
   virtual void messageHandler(byte messageType, byte msg[], byte msgSize)
@@ -736,10 +721,6 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
-        if (!kspStatus.isConnected())
-        {
-          onConnect();
-        }
       }
       break;
 
@@ -1149,7 +1130,11 @@ public:
                 oled12864.gfx.printf("%X", bankSceneIndex);
 
                 // Connection status
-                if (!kspStatus.isConnected())
+                if (kspStatus.isConnected())
+                {
+                  oled12864.gfx.print(kspStatus.isConnectedKSP2() ? "=" : "-");
+                }
+                else
                 {
                   oled12864.gfx.print(kspStatus.isConnecting() ? (timing.isHz(2) ? "/" : "\\") : "!");
                 }

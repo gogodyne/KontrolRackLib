@@ -271,6 +271,11 @@ public:
       return state > 0;
     }
 
+    virtual bool isConnectedKSP2() const
+    {
+      return state == State::ConnectedKSP2;
+    }
+
     virtual bool isConnecting() const
     {
       return state == State::Connecting;
@@ -282,7 +287,6 @@ public:
     }
   };
   KSPStatus kspStatus;
-  unsigned long heartbeatNextMs = 0;
 
   // Long-press
   timing_t longPressMs = 0;
@@ -332,8 +336,7 @@ public:
     if (menu.isOff())
     {
       inputBanks();
-
-      heartbeat();
+      checkConnection();
     }
     else
     {
@@ -599,63 +602,48 @@ public:
   //------------------------------------------------------------------------------
   // Connection
 
-  virtual void heartbeat()
+  virtual void checkConnection()
   {
-    const int HeartbeatInterval = 5000;
-
-    // Ping
-    if (timing.ms >= heartbeatNextMs)
-    {
-      heartbeatNextMs = timing.ms + HeartbeatInterval;
-
-      mySimpit.send(ECHO_REQ_MESSAGE, web.net.hostName, strlen(web.net.hostName) + 1);
-      Serial.println();
-    }
-
-    // Connect
+    // Trying to connect
     if (kspStatus.isConnecting())
     {
+      // Try and did connect
       if (mySimpit.init())
       {
-        onConnect();
+        kspStatus.connect(mySimpit.connectedToKSP2());
+
+        mySimpit.inboundHandler(mySimpitHandler);
+
+        // | Propulsion Resources |
+        mySimpit.registerChannel(LF_MESSAGE);
+        mySimpit.registerChannel(LF_STAGE_MESSAGE);
+        mySimpit.registerChannel(OX_MESSAGE);
+        mySimpit.registerChannel(OX_STAGE_MESSAGE);
+        mySimpit.registerChannel(SF_MESSAGE);
+        mySimpit.registerChannel(SF_STAGE_MESSAGE);
+        mySimpit.registerChannel(XENON_GAS_MESSAGE);
+        mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
+        mySimpit.registerChannel(MONO_MESSAGE);
+        mySimpit.registerChannel(EVA_MESSAGE);
+        // | KSP2 only Resources |
+        mySimpit.registerChannel(INTAKE_AIR_MESSAGE);
+        mySimpit.registerChannel(HYDROGEN_MESSAGE);
+        mySimpit.registerChannel(HYDROGEN_STAGE_MESSAGE);
+        mySimpit.registerChannel(URANIUM_MESSAGE);
+        // | Vessel Resources |
+        mySimpit.registerChannel(ELECTRIC_MESSAGE);
+        mySimpit.registerChannel(ORE_MESSAGE);
+        mySimpit.registerChannel(AB_MESSAGE);
+        mySimpit.registerChannel(AB_STAGE_MESSAGE);
+        mySimpit.registerChannel(TACLS_RESOURCE_MESSAGE);
+        mySimpit.registerChannel(TACLS_WASTE_MESSAGE);
+        mySimpit.registerChannel(CUSTOM_RESOURCE_1_MESSAGE);
+        mySimpit.registerChannel(CUSTOM_RESOURCE_2_MESSAGE);
+
+        // To track EVA
+        mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
       }
     }
-  }
-
-  virtual void onConnect()
-  {
-    kspStatus.connect(mySimpit.connectedToKSP2());
-
-    mySimpit.inboundHandler(mySimpitHandler);
-
-    // | Propulsion Resources |
-    mySimpit.registerChannel(LF_MESSAGE);
-    mySimpit.registerChannel(LF_STAGE_MESSAGE);
-    mySimpit.registerChannel(OX_MESSAGE);
-    mySimpit.registerChannel(OX_STAGE_MESSAGE);
-    mySimpit.registerChannel(SF_MESSAGE);
-    mySimpit.registerChannel(SF_STAGE_MESSAGE);
-    mySimpit.registerChannel(XENON_GAS_MESSAGE);
-    mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
-    mySimpit.registerChannel(MONO_MESSAGE);
-    mySimpit.registerChannel(EVA_MESSAGE);
-    // | KSP2 only Resources |
-    mySimpit.registerChannel(INTAKE_AIR_MESSAGE);
-    mySimpit.registerChannel(HYDROGEN_MESSAGE);
-    mySimpit.registerChannel(HYDROGEN_STAGE_MESSAGE);
-    mySimpit.registerChannel(URANIUM_MESSAGE);
-    // | Vessel Resources |
-    mySimpit.registerChannel(ELECTRIC_MESSAGE);
-    mySimpit.registerChannel(ORE_MESSAGE);
-    mySimpit.registerChannel(AB_MESSAGE);
-    mySimpit.registerChannel(AB_STAGE_MESSAGE);
-    mySimpit.registerChannel(TACLS_RESOURCE_MESSAGE);
-    mySimpit.registerChannel(TACLS_WASTE_MESSAGE);
-    mySimpit.registerChannel(CUSTOM_RESOURCE_1_MESSAGE);
-    mySimpit.registerChannel(CUSTOM_RESOURCE_2_MESSAGE);
-
-    // To track EVA
-    mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
   }
 
   virtual void messageHandler(byte messageType, byte msg[], byte msgSize)
@@ -664,10 +652,6 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
-        if (!kspStatus.isConnected())
-        {
-          onConnect();
-        }
       }
       break;
 
@@ -1139,7 +1123,11 @@ public:
                 oled12864.gfx.printf("%X", bankSceneIndex);
 
                 // Connection status
-                if (!kspStatus.isConnected())
+                if (kspStatus.isConnected())
+                {
+                  oled12864.gfx.print(kspStatus.isConnectedKSP2() ? "=" : "-");
+                }
+                else
                 {
                   oled12864.gfx.print(kspStatus.isConnecting() ? (timing.isHz(2) ? "/" : "\\") : "!");
                 }
