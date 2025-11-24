@@ -75,7 +75,6 @@ public:
     pinMode(info.cs, OUTPUT);
     pinMode(info.clk, OUTPUT);
     digitalWrite(info.clk, HIGH);
-    delay(200);
 
     setDisplayTestMode(MAX7219_DisplayTestMode_Normal);
     setShutdownMode(MAX7219_ShutdownMode_Normal);

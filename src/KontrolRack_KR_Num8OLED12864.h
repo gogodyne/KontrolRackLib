@@ -94,7 +94,7 @@ public:
     if (bankSelectMode == BankSelectMode::None)
     {
       // screen saver
-      drawOledInverted(bankIndex, oled12864Devices[bankIndex].timing.isHz(1.f/30.f));
+      drawOledInverted(bankIndex, oled12864Devices[bankIndex].timing.isHz(1.f / 30.f));
     }
     else
     {
@@ -122,7 +122,7 @@ public:
   {
     if (oled12864Inverted)
     {
-      // Only if changing.
+      // Only if changing
       if (oled12864Inverted[bankIndex] != invert)
       {
         oled12864Inverted[bankIndex] = invert;
@@ -134,9 +134,19 @@ public:
 
   virtual void drawNum8Effects(uint8_t bankIndex)
   {
+    static bool isScreenSave = num8Device.timing.isHz(1.f / 30.f);
+
     if (bankSelectMode == BankSelectMode::None)
     {
       drawNum8Blink(bankIndex, false);
+
+      bool wasScreenSave = isScreenSave;
+      isScreenSave = num8Device.timing.isHz(1.f / 30.f);
+      if (isScreenSave != wasScreenSave)
+      {
+        // In case of under-voltage
+        num8.reset();
+      }
     }
     else
     {
