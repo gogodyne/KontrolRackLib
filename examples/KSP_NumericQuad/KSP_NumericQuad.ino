@@ -24,6 +24,7 @@ void loop() {
   myKRModule.loop();
 }
 
+// Messages from the Simpit
 void messageHandler(byte messageType, byte msg[], byte msgSize) {
   myKRModule.messageHandler(messageType, msg, msgSize);
 }
