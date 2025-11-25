@@ -57,4 +57,7 @@
 
 #define WIFI_AUTOSTART
 
+// Use this to CLEAR *ALL* NVS and freeze
+//#define PREFS_CLEARALL
+
 #endif// KSP_Settings_h

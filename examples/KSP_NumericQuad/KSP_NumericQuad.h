@@ -10,9 +10,6 @@ KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will commu
 #include <KontrolRack_KR_Num8OLED12864.h>
 #include "KSP_NumericQuadWeb.h"
 
-// Use this to CLEAR *ALL* NVS and freeze
-// #define PREFS_CLEAR
-
 using namespace KontrolRack;
 
 #define SCENE_COUNT (16)
@@ -231,25 +228,25 @@ public:
   };
   BankScene bankScenes[SCENE_COUNT] =
   {
-    {{BankDisplayMode::ApoapsisDistance, BankDisplayMode::ApoapsisTime, BankDisplayMode::PeriapsisDistance, BankDisplayMode::PeriapsisTime}},
-    {{BankDisplayMode::AltitudeSeaLevel, BankDisplayMode::AltitudeSurface, BankDisplayMode::VelocityOrbital, BankDisplayMode::VelocitySurface}},
-    {{BankDisplayMode::VelocityVertical, BankDisplayMode::AirspeedIAS, BankDisplayMode::AirspeedMach, BankDisplayMode::AirspeedGForces}},
-    {{BankDisplayMode::ManeuverTimeToNext, BankDisplayMode::ManeuverDeltaVNext, BankDisplayMode::ManeuverDurationNext, BankDisplayMode::ManeuverDeltaVTotal}},
+    {{BankDisplayMode::ApoapsisDistance,                  BankDisplayMode::ApoapsisTime,                    BankDisplayMode::PeriapsisDistance,                 BankDisplayMode::PeriapsisTime}},
+    {{BankDisplayMode::AltitudeSeaLevel,                  BankDisplayMode::AltitudeSurface,                 BankDisplayMode::VelocityOrbital,                   BankDisplayMode::VelocitySurface}},
+    {{BankDisplayMode::VelocityVertical,                  BankDisplayMode::AirspeedIAS,                     BankDisplayMode::AirspeedMach,                      BankDisplayMode::AirspeedGForces}},
+    {{BankDisplayMode::ManeuverTimeToNext,                BankDisplayMode::ManeuverDeltaVNext,              BankDisplayMode::ManeuverDurationNext,              BankDisplayMode::ManeuverDeltaVTotal}},
 
-    {{BankDisplayMode::OrbitEccentricity, BankDisplayMode::OrbitSemiMajorAxis, BankDisplayMode::OrbitInclination, BankDisplayMode::OrbitLongAscendingNode}},
-    {{BankDisplayMode::OrbitArgPeriapsis, BankDisplayMode::OrbitTrueAnomaly, BankDisplayMode::OrbitMeanAnomaly, BankDisplayMode::OrbitPeriod}},
-    {{BankDisplayMode::OrientationHeading, BankDisplayMode::OrientationPitch, BankDisplayMode::OrientationRoll, BankDisplayMode::OFF}},
+    {{BankDisplayMode::TargetDistance,                    BankDisplayMode::TargetVelocity,                  BankDisplayMode::TargetHeading,                     BankDisplayMode::TargetPitch}},
+    {{BankDisplayMode::TargetDistance,                    BankDisplayMode::TargetVelocity,                  BankDisplayMode::TargetVelocityHeading,             BankDisplayMode::TargetVelocityPitch}},
+    {{BankDisplayMode::TargetDistance,                    BankDisplayMode::IntersectsDistanceAtIntersect1,  BankDisplayMode::IntersectsVelocityAtIntersect1,    BankDisplayMode::IntersectsTimeToIntersect1}},
+    {{BankDisplayMode::TargetDistance,                    BankDisplayMode::IntersectsDistanceAtIntersect2,  BankDisplayMode::IntersectsVelocityAtIntersect2,    BankDisplayMode::IntersectsTimeToIntersect2}},
+
+    {{BankDisplayMode::OrbitEccentricity,                 BankDisplayMode::OrbitSemiMajorAxis,              BankDisplayMode::OrbitInclination,                  BankDisplayMode::OrbitLongAscendingNode}},
+    {{BankDisplayMode::OrbitArgPeriapsis,                 BankDisplayMode::OrbitTrueAnomaly,                BankDisplayMode::OrbitMeanAnomaly,                  BankDisplayMode::OrbitPeriod}},
+    {{BankDisplayMode::OrientationHeading,                BankDisplayMode::OrientationPitch,                BankDisplayMode::OrientationRoll,                   BankDisplayMode::OFF}},
     {{BankDisplayMode::OrientationOrbitalVelocityHeading, BankDisplayMode::OrientationOrbitalVelocityPitch, BankDisplayMode::OrientationSurfaceVelocityHeading, BankDisplayMode::OrientationSurfaceVelocityPitch}},
 
-    {{BankDisplayMode::TargetDistance, BankDisplayMode::TargetVelocity, BankDisplayMode::TargetHeading, BankDisplayMode::TargetPitch}},
-    {{BankDisplayMode::TargetDistance, BankDisplayMode::TargetVelocity, BankDisplayMode::TargetVelocityHeading, BankDisplayMode::TargetVelocityPitch}},
-    {{BankDisplayMode::AtmosphereAirDensity, BankDisplayMode::AtmosphereTemperature, BankDisplayMode::AtmospherePressure, BankDisplayMode::OFF}},
-    {{BankDisplayMode::IntersectsDistanceAtIntersect1, BankDisplayMode::IntersectsVelocityAtIntersect1, BankDisplayMode::IntersectsTimeToIntersect1, BankDisplayMode::OFF}},
-
-    {{BankDisplayMode::IntersectsDistanceAtIntersect2, BankDisplayMode::IntersectsVelocityAtIntersect2, BankDisplayMode::IntersectsTimeToIntersect2, BankDisplayMode::OFF}},
-    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
-    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
-    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
+    {{BankDisplayMode::AtmosphereAirDensity,              BankDisplayMode::AtmosphereTemperature,           BankDisplayMode::AtmospherePressure,                BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF,                               BankDisplayMode::OFF,                             BankDisplayMode::OFF,                               BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF,                               BankDisplayMode::OFF,                             BankDisplayMode::OFF,                               BankDisplayMode::OFF}},
+    {{BankDisplayMode::OFF,                               BankDisplayMode::OFF,                             BankDisplayMode::OFF,                               BankDisplayMode::OFF}},
   };
   uint8_t bankSceneIndex = 0;
 
@@ -613,11 +610,11 @@ public:
 
   virtual void prefsBegin()
   {
-#if defined(PREFS_CLEAR)
+#if defined(PREFS_CLEARALL)
     nvs_flash_erase();
     nvs_flash_init();
     while(true);
-#endif// defined(PREFS_CLEAR)
+#endif// defined(PREFS_CLEARALL)
 
     preferences.begin(PREFS_Namespace);
     prefsLoad();

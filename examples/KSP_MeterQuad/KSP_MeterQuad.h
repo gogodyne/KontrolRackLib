@@ -10,9 +10,6 @@ KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will commu
 #include <KontrolRack_KR_LED24OLED12864.h>
 #include "KSP_MeterQuadWeb.h"
 
-// Use this to CLEAR *ALL* NVS and freeze
-// #define PREFS_CLEAR
-
 using namespace KontrolRack;
 
 #define SCENE_COUNT (16)
@@ -115,7 +112,7 @@ public:
   // Labels per mode
   const BankLabel bankLabels[(int)BankDisplayMode::SIZE] =
   {
-    {"(off)",               "",     ""},
+    {"(off)",               "",       ""},
 
     {"Liquid Fuel",         "Lf",     ""},
     {"Liquid Fuel (stage)", "Lf",     "STG"},
@@ -158,25 +155,25 @@ public:
   };
   BankScene bankScenes[SCENE_COUNT] =
   {
-    {{BankDisplayMode::LF_STAGE, BankDisplayMode::OX_STAGE, BankDisplayMode::SF_STAGE, BankDisplayMode::MP}},
-    {{BankDisplayMode::LF, BankDisplayMode::OX, BankDisplayMode::SF, BankDisplayMode::MP}},
-    {{BankDisplayMode::LF_STAGE, BankDisplayMode::OX_STAGE, BankDisplayMode::EL, BankDisplayMode::MP}},
-    {{BankDisplayMode::LF, BankDisplayMode::OX, BankDisplayMode::EL, BankDisplayMode::MP}},
+    {{BankDisplayMode::SF_STAGE,  BankDisplayMode::OX_STAGE,  BankDisplayMode::LF_STAGE,  BankDisplayMode::MP}},
+    {{BankDisplayMode::SF,        BankDisplayMode::OX,        BankDisplayMode::LF,        BankDisplayMode::MP}},
+    {{BankDisplayMode::OX_STAGE,  BankDisplayMode::LF_STAGE,  BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::OX,        BankDisplayMode::LF,        BankDisplayMode::MP,        BankDisplayMode::EL}},
 
-    {{BankDisplayMode::OFF, BankDisplayMode::AB_STAGE, BankDisplayMode::EL, BankDisplayMode::MP}},
-    {{BankDisplayMode::OFF, BankDisplayMode::AB, BankDisplayMode::EL, BankDisplayMode::MP}},
-    {{BankDisplayMode::XE_STAGE, BankDisplayMode::OR, BankDisplayMode::EL, BankDisplayMode::MP}},
-    {{BankDisplayMode::XE, BankDisplayMode::OR, BankDisplayMode::EL, BankDisplayMode::MP}},
+    {{BankDisplayMode::OX_STAGE,  BankDisplayMode::HF_STAGE,  BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::OX,        BankDisplayMode::HF,        BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::LF_STAGE,  BankDisplayMode::IA,        BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::LF,        BankDisplayMode::IA,        BankDisplayMode::MP,        BankDisplayMode::EL}},
 
-    {{BankDisplayMode::LF_STAGE, BankDisplayMode::IA, BankDisplayMode::EL, BankDisplayMode::OFF}},
-    {{BankDisplayMode::LF, BankDisplayMode::IA, BankDisplayMode::EL, BankDisplayMode::OFF}},
-    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
-    {{BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF, BankDisplayMode::OFF}},
+    {{BankDisplayMode::AB_STAGE,  BankDisplayMode::OR,        BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::AB,        BankDisplayMode::OR,        BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::XE_STAGE,  BankDisplayMode::OR,        BankDisplayMode::MP,        BankDisplayMode::EL}},
+    {{BankDisplayMode::XE,        BankDisplayMode::OR,        BankDisplayMode::MP,        BankDisplayMode::EL}},
 
-    {{BankDisplayMode::TR_FOOD, BankDisplayMode::TR_WATER, BankDisplayMode::TR_AIR, BankDisplayMode::OFF}},
-    {{BankDisplayMode::TW_WASTESOLID, BankDisplayMode::TW_WASTELIQUID, BankDisplayMode::TW_WASTEGAS, BankDisplayMode::OFF}},
-    {{BankDisplayMode::C1, BankDisplayMode::C2, BankDisplayMode::C3, BankDisplayMode::C4}},
-    {{BankDisplayMode::C5, BankDisplayMode::C6, BankDisplayMode::C7, BankDisplayMode::C8}},
+    {{BankDisplayMode::TR_FOOD,       BankDisplayMode::TR_WATER,        BankDisplayMode::TR_AIR,      BankDisplayMode::OFF}},
+    {{BankDisplayMode::TW_WASTESOLID, BankDisplayMode::TW_WASTELIQUID,  BankDisplayMode::TW_WASTEGAS, BankDisplayMode::OFF}},
+    {{BankDisplayMode::C1,            BankDisplayMode::C2,              BankDisplayMode::C3,          BankDisplayMode::C4}},
+    {{BankDisplayMode::C5,            BankDisplayMode::C6,              BankDisplayMode::C7,          BankDisplayMode::C8}},
   };
   uint8_t bankSceneIndex = 0;
 
@@ -529,11 +526,11 @@ public:
 
   virtual void prefsBegin()
   {
-#if defined(PREFS_CLEAR)
+#if defined(PREFS_CLEARALL)
     nvs_flash_erase();
     nvs_flash_init();
     while(true);
-#endif// defined(PREFS_CLEAR)
+#endif// defined(PREFS_CLEARALL)
 
     preferences.begin(PREFS_Namespace);
     prefsLoad();
