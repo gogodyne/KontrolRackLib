@@ -50,8 +50,9 @@ public:
       ConnectedKSP2 = 2,
     };
     int state = State::Connecting;
+    timing_t heartbeatMs = 0;
 
-    virtual void connect(bool isKSP2)
+    virtual void onConnect(bool isKSP2)
     {
       state = isKSP2 ? State::ConnectedKSP2 : State::ConnectedKSP;
     }
@@ -83,11 +84,7 @@ public:
   {
     mySimpitHandler = messageHandler;
 
-    for (uint8_t i = 0; i < 10; ++i)
-    {
-      LEDButton& btn = getButton(i);
-      btn.setOutputMode(LEDButton::OutputMode::Active);
-    }
+    idleAllOutputModes();
 
     Parent::begin(btn8_pinIn, btn8_pinOut, btn9_pinIn, btn9_pinOut, i2c_addr, wire);
   }
@@ -114,6 +111,14 @@ public:
       {
         mySimpit.setSASMode(modes[i]);
       }
+    }
+  }
+  virtual void idleAllOutputModes()
+  {
+    for (uint8_t i = 0; i < 10; ++i)
+    {
+      LEDButton& btn = getButton(i);
+      btn.setOutputMode(LEDButton::OutputMode::Active);
     }
   }
 
@@ -144,7 +149,7 @@ public:
       // Try and did connect
       if (mySimpit.init())
       {
-        kspStatus.connect(mySimpit.connectedToKSP2());
+        kspStatus.onConnect(mySimpit.connectedToKSP2());
 
         mySimpit.inboundHandler(mySimpitHandler);
 
@@ -152,6 +157,22 @@ public:
         mySimpit.registerChannel(SAS_MODE_INFO_MESSAGE);
         // | Vessel Details |
         mySimpit.registerChannel(ACTIONSTATUS_MESSAGE);
+      }
+    }
+    else
+    // Connected
+    {
+      if (kspStatus.heartbeatMs == 0)
+      {
+        kspStatus.heartbeatMs = timing.ms + PING_INTERVAL;
+        mySimpit.send(ECHO_REQ_MESSAGE, "PING", 5);
+      }
+      else
+      if (kspStatus.heartbeatMs < timing.ms)
+      {
+        kspStatus.heartbeatMs = 0;
+        kspStatus.toggleConnecting();
+        idleAllOutputModes();
       }
     }
   }
@@ -162,6 +183,7 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
+        kspStatus.heartbeatMs = 0;
       }
       break;
 
