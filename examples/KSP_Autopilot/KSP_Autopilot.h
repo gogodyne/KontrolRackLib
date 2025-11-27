@@ -35,6 +35,9 @@ public:
   void (*mySimpitHandler)(byte messageType, byte msg[], byte msgSize) = nullptr;
   // | Vessel Movement/Position |
   SASInfoMessage SASInfoMsg;
+  byte currentActionStatus = 0;
+
+  bool isStabilityAssistOn = false;
 
   // KSP connection
   struct KSPStatus
@@ -94,6 +97,7 @@ public:
     Parent::loop();
 
     checkConnection();
+    checkInput();
 
     mySimpit.update();
   }
@@ -101,13 +105,27 @@ public:
   //------------------------------------------------------------------------------
   // Input
 
-  virtual void updateAutopilot()
+  virtual void checkInput()
   {
     for (uint8_t i = 0; i < 10; ++i)
     {
       LEDButton& btn = getButton(i);
+      if (btn.didPress)
+      {
+        mySimpit.setSASMode(modes[i]);
+      }
+    }
+  }
+
+  virtual void updateOutputModes()
+  {
+    isStabilityAssistOn = (currentActionStatus & SAS_ACTION);
+
+    for (uint8_t i = 0; i < 10; ++i)
+    {
+      LEDButton& btn = getButton(i);
       int outputMode = LEDButton::OutputMode::Off;
-      if ((1 << modes[i]) & SASInfoMsg.SASModeAvailability)
+      if (isStabilityAssistOn && (1 << modes[i]) & SASInfoMsg.SASModeAvailability)
       {
         outputMode = (SASInfoMsg.currentSASMode == modes[i]) ? LEDButton::OutputMode::Active : LEDButton::OutputMode::On;
       }
@@ -132,6 +150,8 @@ public:
 
         // | Vessel Movement/Position |
         mySimpit.registerChannel(SAS_MODE_INFO_MESSAGE);
+        // | Vessel Details |
+        mySimpit.registerChannel(ACTIONSTATUS_MESSAGE);
       }
     }
   }
@@ -152,8 +172,18 @@ public:
         if (msgSize == sizeof(SASInfoMessage))
         {
           SASInfoMsg = parseMessage<SASInfoMessage>(msg);
-          updateAutopilot();
+          updateOutputModes();
         }
+      }
+      break;
+
+    // | Vessel Details |
+
+    case ACTIONSTATUS_MESSAGE:
+      if (msgSize == 1)
+      {
+        currentActionStatus = msg[0];
+        updateOutputModes();
       }
       break;
     }

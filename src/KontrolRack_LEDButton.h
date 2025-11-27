@@ -36,7 +36,7 @@ public:
 
   virtual void draw(bool isBlink)
   {
-    drawOutput(outputMode > 0 && isBlink);
+    drawOutput((outputMode == LEDButton::OutputMode::On) || ((outputMode == LEDButton::OutputMode::Active) && isBlink));
   }
 
   virtual void drawOutput(bool isOn, bool force = false)
@@ -109,9 +109,6 @@ public:
     timing.loop();
     bool isBlink = (timing.isHz(2) || timing.isHz(4));
 
-    btn8.loop(isBlink);
-    btn9.loop(isBlink);
-
     muxState = mux16.digitalReadWord();
     for (uint8_t i = 0; i < 8; ++i)
     {
@@ -129,6 +126,9 @@ public:
       // Output
       mux16.digitalWrite(iOut, pinValue);
     }
+
+    btn8.loop(isBlink);
+    btn9.loop(isBlink);
   }
 
   virtual LEDButton& getButton(uint8_t index)
