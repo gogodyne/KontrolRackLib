@@ -51,6 +51,7 @@ public:
     };
     int state = State::Connecting;
     timing_t heartbeatMs = 0;
+    bool heartbeatPing = false;
 
     virtual void onConnect(bool isKSP2)
     {
@@ -164,15 +165,19 @@ public:
     {
       if (kspStatus.heartbeatMs == 0)
       {
-        kspStatus.heartbeatMs = timing.ms + PING_INTERVAL;
+        kspStatus.heartbeatMs = timing.ms + HEARTBEAT_INTERVALMS;
+        kspStatus.heartbeatPing = false;
         mySimpit.send(ECHO_REQ_MESSAGE, "PING", 5);
       }
       else
       if (kspStatus.heartbeatMs < timing.ms)
       {
         kspStatus.heartbeatMs = 0;
-        kspStatus.toggleConnecting();
-        idleAllOutputModes();
+        if (!kspStatus.heartbeatPing)
+        {
+          kspStatus.toggleConnecting();
+          idleAllOutputModes();
+        }
       }
     }
   }
@@ -183,7 +188,7 @@ public:
     {
     case ECHO_RESP_MESSAGE:
       {
-        kspStatus.heartbeatMs = 0;
+        kspStatus.heartbeatPing = true;
       }
       break;
 

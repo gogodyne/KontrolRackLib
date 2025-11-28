@@ -11,7 +11,7 @@
 
 #define MODULE_FPS        12
 
-#define PING_INTERVAL   1000
+#define HEARTBEAT_INTERVALMS  2000
 #define WIFI_AUTOSTART
 
 #endif// KSP_Settings_h

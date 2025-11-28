@@ -43,6 +43,7 @@
 
 #define MODULE_FPS        12
 
+#define HEARTBEAT_INTERVALMS  2000
 #define WIFI_AUTOSTART
 
 // Use this to CLEAR *ALL* NVS and freeze
