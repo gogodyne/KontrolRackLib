@@ -4,6 +4,7 @@
 
 #include <Preferences.h>
 #include <nvs_flash.h>
+// https://github.com/Simpit-team/KerbalSimpitRevamped-Arduino
 #include <KerbalSimpit.h>
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
@@ -580,6 +581,7 @@ public:
       if (bankScenes[iScene].modes[iBank] != (BankDisplayMode)iBankMode)
       {
         bankScenes[iScene].modes[iBank] = (BankDisplayMode)iBankMode;
+        registerChannels();
 
         return true;
       }
@@ -605,6 +607,7 @@ public:
     {
       bankSceneIndex = max(bankSceneIndex - 1, 0);
     }
+    registerChannels();
   }
 
   //------------------------------------------------------------------------------
@@ -698,18 +701,19 @@ public:
         mySimpit.inboundHandler(mySimpitHandler);
 
         // | Vessel Movement/Position |
-        mySimpit.registerChannel(ALTITUDE_MESSAGE);
-        mySimpit.registerChannel(VELOCITY_MESSAGE);
-        mySimpit.registerChannel(AIRSPEED_MESSAGE);
-        mySimpit.registerChannel(APSIDES_MESSAGE);
-        mySimpit.registerChannel(APSIDESTIME_MESSAGE);
-        mySimpit.registerChannel(MANEUVER_MESSAGE);
-        mySimpit.registerChannel(ORBIT_MESSAGE);
-        mySimpit.registerChannel(ROTATION_DATA_MESSAGE);
+        // mySimpit.registerChannel(ALTITUDE_MESSAGE);
+        // mySimpit.registerChannel(VELOCITY_MESSAGE);
+        // mySimpit.registerChannel(AIRSPEED_MESSAGE);
+        // mySimpit.registerChannel(APSIDES_MESSAGE);
+        // mySimpit.registerChannel(APSIDESTIME_MESSAGE);
+        // mySimpit.registerChannel(MANEUVER_MESSAGE);
+        // mySimpit.registerChannel(ORBIT_MESSAGE);
+        // mySimpit.registerChannel(ROTATION_DATA_MESSAGE);
         // | External Environment |
-        mySimpit.registerChannel(TARGETINFO_MESSAGE);
-        mySimpit.registerChannel(ATMO_CONDITIONS_MESSAGE);
-        mySimpit.registerChannel(INTERSECTS_MESSAGE);
+        // mySimpit.registerChannel(TARGETINFO_MESSAGE);
+        // mySimpit.registerChannel(ATMO_CONDITIONS_MESSAGE);
+        // mySimpit.registerChannel(INTERSECTS_MESSAGE);
+        registerChannels();
       }
     }
     else
@@ -729,6 +733,113 @@ public:
         {
           kspStatus.toggleConnecting();
         }
+      }
+    }
+  }
+
+  virtual void registerChannels()
+  {
+    // | Vessel Movement/Position |
+    mySimpit.deregisterChannel(ALTITUDE_MESSAGE);
+    mySimpit.deregisterChannel(VELOCITY_MESSAGE);
+    mySimpit.deregisterChannel(AIRSPEED_MESSAGE);
+    mySimpit.deregisterChannel(APSIDES_MESSAGE);
+    mySimpit.deregisterChannel(APSIDESTIME_MESSAGE);
+    mySimpit.deregisterChannel(MANEUVER_MESSAGE);
+    mySimpit.deregisterChannel(ORBIT_MESSAGE);
+    mySimpit.deregisterChannel(ROTATION_DATA_MESSAGE);
+    // | External Environment |
+    mySimpit.deregisterChannel(TARGETINFO_MESSAGE);
+    mySimpit.deregisterChannel(ATMO_CONDITIONS_MESSAGE);
+    mySimpit.deregisterChannel(INTERSECTS_MESSAGE);
+
+    for (int i = 0; i < bankCount; ++i)
+    {
+      switch (bankScenes[bankSceneIndex].modes[i])
+      {
+      // | Vessel Movement/Position |
+
+      case BankDisplayMode::AltitudeSeaLevel:
+      case BankDisplayMode::AltitudeSurface:
+        mySimpit.registerChannel(ALTITUDE_MESSAGE);
+        break;
+
+      case BankDisplayMode::VelocityOrbital:
+      case BankDisplayMode::VelocitySurface:
+      case BankDisplayMode::VelocityVertical:
+        mySimpit.registerChannel(VELOCITY_MESSAGE);
+        break;
+
+      case BankDisplayMode::AirspeedIAS:
+      case BankDisplayMode::AirspeedMach:
+      case BankDisplayMode::AirspeedGForces:
+        mySimpit.registerChannel(AIRSPEED_MESSAGE);
+        break;
+
+      case BankDisplayMode::ApoapsisDistance:
+      case BankDisplayMode::PeriapsisDistance:
+        mySimpit.registerChannel(APSIDES_MESSAGE);
+        break;
+      case BankDisplayMode::ApoapsisTime:
+      case BankDisplayMode::PeriapsisTime:
+        mySimpit.registerChannel(APSIDESTIME_MESSAGE);
+        break;
+
+      case BankDisplayMode::ManeuverTimeToNext:
+      case BankDisplayMode::ManeuverDeltaVNext:
+      case BankDisplayMode::ManeuverDurationNext:
+      case BankDisplayMode::ManeuverDeltaVTotal:
+      case BankDisplayMode::ManeuverHeadingNext:
+      case BankDisplayMode::ManeuverPitchNext:
+        mySimpit.registerChannel(MANEUVER_MESSAGE);
+        break;
+
+      case BankDisplayMode::OrbitEccentricity:
+      case BankDisplayMode::OrbitSemiMajorAxis:
+      case BankDisplayMode::OrbitInclination:
+      case BankDisplayMode::OrbitLongAscendingNode:
+      case BankDisplayMode::OrbitArgPeriapsis:
+      case BankDisplayMode::OrbitTrueAnomaly:
+      case BankDisplayMode::OrbitMeanAnomaly:
+      case BankDisplayMode::OrbitPeriod:
+        mySimpit.registerChannel(ORBIT_MESSAGE);
+        break;
+
+      case BankDisplayMode::OrientationHeading:
+      case BankDisplayMode::OrientationPitch:
+      case BankDisplayMode::OrientationRoll:
+      case BankDisplayMode::OrientationOrbitalVelocityHeading:
+      case BankDisplayMode::OrientationOrbitalVelocityPitch:
+      case BankDisplayMode::OrientationSurfaceVelocityHeading:
+      case BankDisplayMode::OrientationSurfaceVelocityPitch:
+        mySimpit.registerChannel(ROTATION_DATA_MESSAGE);
+        break;
+
+      // | External Environment |
+
+      case BankDisplayMode::TargetDistance:
+      case BankDisplayMode::TargetVelocity:
+      case BankDisplayMode::TargetHeading:
+      case BankDisplayMode::TargetPitch:
+      case BankDisplayMode::TargetVelocityHeading:
+      case BankDisplayMode::TargetVelocityPitch:
+        mySimpit.registerChannel(TARGETINFO_MESSAGE);
+        break;
+
+      case BankDisplayMode::AtmosphereAirDensity:
+      case BankDisplayMode::AtmosphereTemperature:
+      case BankDisplayMode::AtmospherePressure:
+        mySimpit.registerChannel(ATMO_CONDITIONS_MESSAGE);
+        break;
+
+      case BankDisplayMode::IntersectsDistanceAtIntersect1:
+      case BankDisplayMode::IntersectsVelocityAtIntersect1:
+      case BankDisplayMode::IntersectsTimeToIntersect1:
+      case BankDisplayMode::IntersectsDistanceAtIntersect2:
+      case BankDisplayMode::IntersectsVelocityAtIntersect2:
+      case BankDisplayMode::IntersectsTimeToIntersect2:
+        mySimpit.registerChannel(INTERSECTS_MESSAGE);
+        break;
       }
     }
   }

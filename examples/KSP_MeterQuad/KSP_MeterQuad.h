@@ -4,6 +4,7 @@
 
 #include <Preferences.h>
 #include <nvs_flash.h>
+// https://github.com/Simpit-team/KerbalSimpitRevamped-Arduino
 #include <KerbalSimpit.h>
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
 #include <KontrolRack.h>
@@ -496,6 +497,7 @@ public:
       if (bankScenes[iScene].modes[iBank] != (BankDisplayMode)iBankMode)
       {
         bankScenes[iScene].modes[iBank] = (BankDisplayMode)iBankMode;
+        registerChannels();
 
         return true;
       }
@@ -521,6 +523,7 @@ public:
     {
       bankSceneIndex = max(bankSceneIndex - 1, 0);
     }
+    registerChannels();
   }
 
   //------------------------------------------------------------------------------
@@ -614,33 +617,34 @@ public:
         mySimpit.inboundHandler(mySimpitHandler);
 
         // | Propulsion Resources |
-        mySimpit.registerChannel(LF_MESSAGE);
-        mySimpit.registerChannel(LF_STAGE_MESSAGE);
-        mySimpit.registerChannel(OX_MESSAGE);
-        mySimpit.registerChannel(OX_STAGE_MESSAGE);
-        mySimpit.registerChannel(SF_MESSAGE);
-        mySimpit.registerChannel(SF_STAGE_MESSAGE);
-        mySimpit.registerChannel(XENON_GAS_MESSAGE);
-        mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
-        mySimpit.registerChannel(MONO_MESSAGE);
-        mySimpit.registerChannel(EVA_MESSAGE);
+        // mySimpit.registerChannel(LF_MESSAGE);
+        // mySimpit.registerChannel(LF_STAGE_MESSAGE);
+        // mySimpit.registerChannel(OX_MESSAGE);
+        // mySimpit.registerChannel(OX_STAGE_MESSAGE);
+        // mySimpit.registerChannel(SF_MESSAGE);
+        // mySimpit.registerChannel(SF_STAGE_MESSAGE);
+        // mySimpit.registerChannel(XENON_GAS_MESSAGE);
+        // mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
+        // mySimpit.registerChannel(MONO_MESSAGE);
+        // mySimpit.registerChannel(EVA_MESSAGE);
         // | KSP2 only Resources |
-        mySimpit.registerChannel(INTAKE_AIR_MESSAGE);
-        mySimpit.registerChannel(HYDROGEN_MESSAGE);
-        mySimpit.registerChannel(HYDROGEN_STAGE_MESSAGE);
-        mySimpit.registerChannel(URANIUM_MESSAGE);
+        // mySimpit.registerChannel(INTAKE_AIR_MESSAGE);
+        // mySimpit.registerChannel(HYDROGEN_MESSAGE);
+        // mySimpit.registerChannel(HYDROGEN_STAGE_MESSAGE);
+        // mySimpit.registerChannel(URANIUM_MESSAGE);
         // | Vessel Resources |
-        mySimpit.registerChannel(ELECTRIC_MESSAGE);
-        mySimpit.registerChannel(ORE_MESSAGE);
-        mySimpit.registerChannel(AB_MESSAGE);
-        mySimpit.registerChannel(AB_STAGE_MESSAGE);
-        mySimpit.registerChannel(TACLS_RESOURCE_MESSAGE);
-        mySimpit.registerChannel(TACLS_WASTE_MESSAGE);
-        mySimpit.registerChannel(CUSTOM_RESOURCE_1_MESSAGE);
-        mySimpit.registerChannel(CUSTOM_RESOURCE_2_MESSAGE);
+        // mySimpit.registerChannel(ELECTRIC_MESSAGE);
+        // mySimpit.registerChannel(ORE_MESSAGE);
+        // mySimpit.registerChannel(AB_MESSAGE);
+        // mySimpit.registerChannel(AB_STAGE_MESSAGE);
+        // mySimpit.registerChannel(TACLS_RESOURCE_MESSAGE);
+        // mySimpit.registerChannel(TACLS_WASTE_MESSAGE);
+        // mySimpit.registerChannel(CUSTOM_RESOURCE_1_MESSAGE);
+        // mySimpit.registerChannel(CUSTOM_RESOURCE_2_MESSAGE);
 
         // To track EVA
-        mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
+        // mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
+        registerChannels();
       }
     }
     else
@@ -660,6 +664,149 @@ public:
         {
           kspStatus.toggleConnecting();
         }
+      }
+    }
+  }
+
+  virtual void registerChannels()
+  {
+    // | Propulsion Resources |
+    mySimpit.deregisterChannel(LF_MESSAGE);
+    mySimpit.deregisterChannel(LF_STAGE_MESSAGE);
+    mySimpit.deregisterChannel(OX_MESSAGE);
+    mySimpit.deregisterChannel(OX_STAGE_MESSAGE);
+    mySimpit.deregisterChannel(SF_MESSAGE);
+    mySimpit.deregisterChannel(SF_STAGE_MESSAGE);
+    mySimpit.deregisterChannel(XENON_GAS_MESSAGE);
+    mySimpit.deregisterChannel(XENON_GAS_STAGE_MESSAGE);
+    mySimpit.deregisterChannel(MONO_MESSAGE);
+    mySimpit.deregisterChannel(EVA_MESSAGE);
+    // | KSP2 only Resources |
+    mySimpit.deregisterChannel(INTAKE_AIR_MESSAGE);
+    mySimpit.deregisterChannel(HYDROGEN_MESSAGE);
+    mySimpit.deregisterChannel(HYDROGEN_STAGE_MESSAGE);
+    mySimpit.deregisterChannel(URANIUM_MESSAGE);
+    // | Vessel Resources |
+    mySimpit.deregisterChannel(ELECTRIC_MESSAGE);
+    mySimpit.deregisterChannel(ORE_MESSAGE);
+    mySimpit.deregisterChannel(AB_MESSAGE);
+    mySimpit.deregisterChannel(AB_STAGE_MESSAGE);
+    mySimpit.deregisterChannel(TACLS_RESOURCE_MESSAGE);
+    mySimpit.deregisterChannel(TACLS_WASTE_MESSAGE);
+    mySimpit.deregisterChannel(CUSTOM_RESOURCE_1_MESSAGE);
+    mySimpit.deregisterChannel(CUSTOM_RESOURCE_2_MESSAGE);
+
+    // To track EVA
+    mySimpit.deregisterChannel(FLIGHT_STATUS_MESSAGE);
+
+    // To track EVA
+    mySimpit.registerChannel(FLIGHT_STATUS_MESSAGE);
+
+    for (int i = 0; i < bankCount; ++i)
+    {
+      switch (bankScenes[bankSceneIndex].modes[i])
+      {
+      // | Propulsion Resources |
+
+      case BankDisplayMode::LF:// liquid fuel
+        mySimpit.registerChannel(LF_MESSAGE);
+        break;
+
+      case BankDisplayMode::LF_STAGE:
+        mySimpit.registerChannel(LF_STAGE_MESSAGE);
+        break;
+
+      case BankDisplayMode::OX:// oxidizer
+        mySimpit.registerChannel(OX_MESSAGE);
+        break;
+
+      case BankDisplayMode::OX_STAGE:
+        mySimpit.registerChannel(OX_STAGE_MESSAGE);
+        break;
+
+      case BankDisplayMode::SF:// solid fuel
+        mySimpit.registerChannel(SF_MESSAGE);
+        break;
+
+      case BankDisplayMode::SF_STAGE:
+        mySimpit.registerChannel(SF_STAGE_MESSAGE);
+        break;
+
+      case BankDisplayMode::XE:// xenon
+        mySimpit.registerChannel(XENON_GAS_MESSAGE);
+        break;
+
+      case BankDisplayMode::XE_STAGE:
+        mySimpit.registerChannel(XENON_GAS_STAGE_MESSAGE);
+        break;
+
+      case BankDisplayMode::MP:// monopropellant
+        mySimpit.registerChannel(MONO_MESSAGE);
+        break;
+
+      case BankDisplayMode::EV:// EVA MP
+        mySimpit.registerChannel(EVA_MESSAGE);
+        break;
+
+      // | KSP2 only Resources |
+
+      case BankDisplayMode::IA:// intake air
+        mySimpit.registerChannel(INTAKE_AIR_MESSAGE);
+        break;
+
+      case BankDisplayMode::HF:// hydrogen
+        mySimpit.registerChannel(HYDROGEN_MESSAGE);
+        break;
+
+      case BankDisplayMode::HF_STAGE:
+        mySimpit.registerChannel(HYDROGEN_STAGE_MESSAGE);
+        break;
+
+      case BankDisplayMode::UF:// uranium
+        mySimpit.registerChannel(URANIUM_MESSAGE);
+        break;
+
+      // | Vessel Resources |
+
+      case BankDisplayMode::EL:// electric
+        mySimpit.registerChannel(ELECTRIC_MESSAGE);
+        break;
+
+      case BankDisplayMode::OR:// ore
+        mySimpit.registerChannel(ORE_MESSAGE);
+        break;
+
+      case BankDisplayMode::AB:// ablator
+        mySimpit.registerChannel(AB_MESSAGE);
+        break;
+
+      case BankDisplayMode::AB_STAGE:
+        mySimpit.registerChannel(AB_STAGE_MESSAGE);
+        break;
+
+      case BankDisplayMode::TR_FOOD:// TACLS resource
+      case BankDisplayMode::TR_WATER:// TACLS resource
+      case BankDisplayMode::TR_AIR:// TACLS resource
+        mySimpit.registerChannel(TACLS_RESOURCE_MESSAGE);
+        break;
+
+      case BankDisplayMode::TW_WASTESOLID:// TACLS waste
+      case BankDisplayMode::TW_WASTELIQUID:// TACLS waste
+      case BankDisplayMode::TW_WASTEGAS:// TACLS waste
+        mySimpit.registerChannel(TACLS_WASTE_MESSAGE);
+        break;
+
+      case BankDisplayMode::C1:// custom resource
+      case BankDisplayMode::C2:// custom resource
+      case BankDisplayMode::C3:// custom resource
+      case BankDisplayMode::C4:// custom resource
+      case BankDisplayMode::C5:// custom resource
+      case BankDisplayMode::C6:// custom resource
+      case BankDisplayMode::C7:// custom resource
+      case BankDisplayMode::C8:// custom resource
+        mySimpit.registerChannel(CUSTOM_RESOURCE_1_MESSAGE);
+        mySimpit.registerChannel(CUSTOM_RESOURCE_2_MESSAGE);
+        break;
       }
     }
   }
