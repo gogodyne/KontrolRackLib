@@ -706,6 +706,9 @@ public:
     {
       switch (bankScenes[bankSceneIndex].modes[i])
       {
+      default:
+        break;
+
       // | Propulsion Resources |
 
       case BankDisplayMode::LF:// liquid fuel

@@ -757,6 +757,9 @@ public:
     {
       switch (bankScenes[bankSceneIndex].modes[i])
       {
+      default:
+        break;
+
       // | Vessel Movement/Position |
 
       case BankDisplayMode::AltitudeSeaLevel:
