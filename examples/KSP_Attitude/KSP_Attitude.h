@@ -17,18 +17,18 @@ public:
   // Presets
   byte modes[10] =
   {
-    AttitudeMode::AP_PROGRADE,
-    AttitudeMode::AP_RETROGRADE,
-    AttitudeMode::AP_NORMAL,
-    AttitudeMode::AP_ANTINORMAL,
-    AttitudeMode::AP_RADIALIN,
-    AttitudeMode::AP_RADIALOUT,
-    AttitudeMode::AP_TARGET,
-    AttitudeMode::AP_ANTITARGET,
-    AttitudeMode::AP_STABILITYASSIST,
-    AttitudeMode::AP_MANEUVER,
-    // AttitudeMode::AP_NAVIGATION,
-    // AttitudeMode::AP_Attitude,
+    AutopilotMode::AP_PROGRADE,
+    AutopilotMode::AP_RETROGRADE,
+    AutopilotMode::AP_NORMAL,
+    AutopilotMode::AP_ANTINORMAL,
+    AutopilotMode::AP_RADIALIN,
+    AutopilotMode::AP_RADIALOUT,
+    AutopilotMode::AP_TARGET,
+    AutopilotMode::AP_ANTITARGET,
+    AutopilotMode::AP_STABILITYASSIST,
+    AutopilotMode::AP_MANEUVER,
+    // AutopilotMode::AP_NAVIGATION,
+    // AutopilotMode::AP_AUTOPILOT,
   };
 
   // KSP Messages
@@ -198,6 +198,7 @@ public:
       {
         if (msgSize == sizeof(SASInfoMessage))
         {
+          kspStatus.heartbeatPing = true;
           SASInfoMsg = parseMessage<SASInfoMessage>(msg);
           updateOutputModes();
         }
@@ -209,6 +210,7 @@ public:
     case ACTIONSTATUS_MESSAGE:
       if (msgSize == 1)
       {
+        kspStatus.heartbeatPing = true;
         currentActionStatus = msg[0];
         updateOutputModes();
       }

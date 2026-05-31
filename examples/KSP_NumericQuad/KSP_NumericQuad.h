@@ -860,6 +860,7 @@ public:
       {
         if (msgSize == sizeof(altitudeMessage))
         {
+          kspStatus.heartbeatPing = true;
           altitudeMsg = parseMessage<altitudeMessage>(msg);
         }
       }
@@ -869,6 +870,7 @@ public:
       {
         if (msgSize == sizeof(velocityMessage))
         {
+          kspStatus.heartbeatPing = true;
           velocityMsg = parseMessage<velocityMessage>(msg);
         }
       }
@@ -878,6 +880,7 @@ public:
       {
         if (msgSize == sizeof(airspeedMessage))
         {
+          kspStatus.heartbeatPing = true;
           airspeedMsg = parseMessage<airspeedMessage>(msg);
         }
       }
@@ -887,6 +890,7 @@ public:
       {
         if (msgSize == sizeof(apsidesMessage))
         {
+          kspStatus.heartbeatPing = true;
           apsidesMsg = parseMessage<apsidesMessage>(msg);
         }
       }
@@ -896,6 +900,7 @@ public:
       {
         if (msgSize == sizeof(apsidesTimeMessage))
         {
+          kspStatus.heartbeatPing = true;
           apsidesTimeMsg = parseMessage<apsidesTimeMessage>(msg);
         }
       }
@@ -905,6 +910,7 @@ public:
       {
         if (msgSize == sizeof(maneuverMessage))
         {
+          kspStatus.heartbeatPing = true;
           maneuverMsg = parseMessage<maneuverMessage>(msg);
         }
       }
@@ -914,6 +920,7 @@ public:
       {
         if (msgSize == sizeof(orbitInfoMessage))
         {
+          kspStatus.heartbeatPing = true;
           orbitInfoMsg = parseMessage<orbitInfoMessage>(msg);
         }
       }
@@ -923,6 +930,7 @@ public:
       {
         if (msgSize == sizeof(vesselPointingMessage))
         {
+          kspStatus.heartbeatPing = true;
           vesselPointingMsg = parseMessage<vesselPointingMessage>(msg);
         }
       }
@@ -934,6 +942,7 @@ public:
       {
         if (msgSize == sizeof(targetMessage)) 
         {
+          kspStatus.heartbeatPing = true;
           targetMsg = parseMessage<targetMessage>(msg);
         }
       } break;
@@ -942,6 +951,7 @@ public:
       {
         if (msgSize == sizeof(atmoConditionsMessage)) 
         {
+          kspStatus.heartbeatPing = true;
           atmoConditionsMsg = parseMessage<atmoConditionsMessage>(msg);
         }
       } break;
@@ -950,6 +960,7 @@ public:
       {
         if (msgSize == sizeof(intersectsMessage)) 
         {
+          kspStatus.heartbeatPing = true;
           intersectsMsg = parseMessage<intersectsMessage>(msg);
         }
       }

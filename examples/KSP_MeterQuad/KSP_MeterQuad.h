@@ -825,6 +825,7 @@ public:
       {
         if (msgSize == sizeof(flightStatusMessage))
         {
+          kspStatus.heartbeatPing = true;
           flightStatusMsg = parseMessage<flightStatusMessage>(msg);
         }
       }
@@ -836,6 +837,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           liquidFuelMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -845,6 +847,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           liquidFuelStageMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -854,6 +857,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           oxidizerMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -863,6 +867,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           oxidizerStageMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -872,6 +877,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           solidFuelMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -881,6 +887,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           solidFuelStageMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -890,6 +897,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           xenonGasMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -899,6 +907,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           xenonGasStageMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -908,6 +917,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           monopropellantMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -917,6 +927,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           evaMonopropellantMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -928,6 +939,7 @@ public:
       { //Only works on KSP2
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           intakeAirMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -937,6 +949,7 @@ public:
       { //Only works on KSP2
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           hydrogenMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -946,6 +959,7 @@ public:
       { //Only works on KSP2
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           hydrogenStageMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -955,6 +969,7 @@ public:
       { //Only works on KSP2
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           uraniumMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -966,6 +981,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           electricMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -975,6 +991,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           oreMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -984,6 +1001,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           ablatorMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -993,6 +1011,7 @@ public:
       { // (Note: For this to work on KSP1 this needs the mod ARP to be installed)
         if (msgSize == sizeof(resourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           ablatorStageMsg = parseMessage<resourceMessage>(msg);
         }
       }
@@ -1002,6 +1021,7 @@ public:
       { // (Note: Only works on KSP1. This needs the mod ARP and TAC Life Support to be installed)
         if (msgSize == sizeof(TACLSResourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           taclsResourceMsg = parseMessage<TACLSResourceMessage>(msg);
         }
       }
@@ -1011,6 +1031,7 @@ public:
       { // (Note: Only works on KSP1. This needs the mod ARP and TAC Life Support to be installed)
         if (msgSize == sizeof(TACLSWasteMessage))
         {
+          kspStatus.heartbeatPing = true;
           taclsWasteMsg = parseMessage<TACLSWasteMessage>(msg);
         }
       } break;
@@ -1019,6 +1040,7 @@ public:
       { // (Note: Only works on KSP1. This needs the mod ARP and Community Resource Pack to be installed)
         if (msgSize == sizeof(CustomResourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           customResource1Msg = parseMessage<CustomResourceMessage>(msg);
         }
       }
@@ -1028,6 +1050,7 @@ public:
       { // (Note: Only works on KSP1. This needs the mod ARP and Community Resource Pack to be installed)
         if (msgSize == sizeof(CustomResourceMessage))
         {
+          kspStatus.heartbeatPing = true;
           customResource2Msg = parseMessage<CustomResourceMessage>(msg);
         }
       }
