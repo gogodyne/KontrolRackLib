@@ -2,7 +2,7 @@
 #ifndef KSP_Settings_h
 #define KSP_Settings_h
 
-#define APP_TITLE "KSP Autopilot"
+#define APP_TITLE "KSP Attitude"
 
 #define BTN8_PININ  2
 #define BTN8_PINOUT 3

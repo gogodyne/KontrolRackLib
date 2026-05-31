@@ -1,6 +1,6 @@
 // (c) 2025 gogodyne
-#ifndef KSP_Autopilot_h
-#define KSP_Autopilot_h
+#ifndef KSP_Attitude_h
+#define KSP_Attitude_h
 
 #include <KerbalSimpit.h>
 KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will communicate using the "Serial" device.
@@ -9,7 +9,7 @@ KerbalSimpit mySimpit(Serial);  // Declare a KerbalSimpit object that will commu
 using namespace KontrolRack;
 
 ////////////////////////////////////////////////////////////////////////////////
-class KSP_Autopilot : public LEDButton10
+class KSP_Attitude : public LEDButton10
 {
 public:
   using Parent = LEDButton10;
@@ -17,18 +17,18 @@ public:
   // Presets
   byte modes[10] =
   {
-    AutopilotMode::AP_PROGRADE,
-    AutopilotMode::AP_RETROGRADE,
-    AutopilotMode::AP_NORMAL,
-    AutopilotMode::AP_ANTINORMAL,
-    AutopilotMode::AP_RADIALIN,
-    AutopilotMode::AP_RADIALOUT,
-    AutopilotMode::AP_TARGET,
-    AutopilotMode::AP_ANTITARGET,
-    AutopilotMode::AP_STABILITYASSIST,
-    AutopilotMode::AP_MANEUVER,
-    // AutopilotMode::AP_NAVIGATION,
-    // AutopilotMode::AP_AUTOPILOT,
+    AttitudeMode::AP_PROGRADE,
+    AttitudeMode::AP_RETROGRADE,
+    AttitudeMode::AP_NORMAL,
+    AttitudeMode::AP_ANTINORMAL,
+    AttitudeMode::AP_RADIALIN,
+    AttitudeMode::AP_RADIALOUT,
+    AttitudeMode::AP_TARGET,
+    AttitudeMode::AP_ANTITARGET,
+    AttitudeMode::AP_STABILITYASSIST,
+    AttitudeMode::AP_MANEUVER,
+    // AttitudeMode::AP_NAVIGATION,
+    // AttitudeMode::AP_Attitude,
   };
 
   // KSP Messages

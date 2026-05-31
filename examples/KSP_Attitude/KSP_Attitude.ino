@@ -1,9 +1,9 @@
 #include "KSP_Settings.h"
-#include "KSP_Autopilot.h"
+#include "KSP_Attitude.h"
 
 using namespace KontrolRack;
 
-KSP_Autopilot myKRModule;
+KSP_Attitude myKRModule;
 
 void setup() {
   // put your setup code here, to run once:
